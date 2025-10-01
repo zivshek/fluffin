@@ -15,7 +15,6 @@ class SettingsScreen extends StatelessWidget {
         title: Text(AppLocalizations.of(context)!.settings),
         backgroundColor: const Color(0xFF00A4DC),
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
       ),
       body: Consumer<SettingsProvider>(
         builder: (context, settings, _) {

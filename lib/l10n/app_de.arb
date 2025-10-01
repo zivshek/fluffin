@@ -51,5 +51,10 @@
   "languageCode": "Sprachcode",
   "save": "Speichern",
   "cancel": "Abbrechen",
-  "logoutConfirmation": "Sind Sie sicher, dass Sie sich abmelden möchten?"
+  "logoutConfirmation": "Sind Sie sicher, dass Sie sich abmelden möchten?",
+  "recentUsers": "Kürzliche Benutzer",
+  "show": "Anzeigen",
+  "hide": "Ausblenden",
+  "library": "Bibliothek",
+  "favorites": "Favoriten"
 }

@@ -51,5 +51,10 @@
   "languageCode": "Code de Langue",
   "save": "Enregistrer",
   "cancel": "Annuler",
-  "logoutConfirmation": "Êtes-vous sûr de vouloir vous déconnecter ?"
+  "logoutConfirmation": "Êtes-vous sûr de vouloir vous déconnecter ?",
+  "recentUsers": "Utilisateurs Récents",
+  "show": "Afficher",
+  "hide": "Masquer",
+  "library": "Bibliothèque",
+  "favorites": "Favoris"
 }

@@ -7,10 +7,10 @@ import 'package:media_kit/media_kit.dart';
 import 'providers/jellyfin_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/login_screen.dart';
-import 'screens/main_scaffold.dart';
-import 'screens/home_screen.dart';
+import 'screens/library_selection_screen.dart';
+import 'screens/library_content_screen.dart';
 import 'screens/search_screen.dart';
-import 'screens/downloads_screen.dart';
+import 'screens/favorites_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/player_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -66,38 +66,45 @@ class FluffinApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/login',
+  initialLocation: '/libraries',
   routes: [
-    // Auth flow
+    // Library selection (main hub)
+    GoRoute(
+      path: '/libraries',
+      builder: (context, state) => const LibrarySelectionScreen(),
+    ),
+
+    // Login flow
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
     ),
 
-    // Main app with bottom navigation
-    ShellRoute(
-      builder: (context, state, child) => MainScaffold(child: child),
-      routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, state) => const HomeScreen(),
-        ),
-        GoRoute(
-          path: '/search',
-          builder: (context, state) => const SearchScreen(),
-        ),
-        GoRoute(
-          path: '/downloads',
-          builder: (context, state) => const DownloadsScreen(),
-        ),
-        GoRoute(
-          path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
-        ),
-      ],
+    // Library content (no bottom nav)
+    GoRoute(
+      path: '/library',
+      builder: (context, state) => const LibraryContentScreen(),
     ),
 
-    // Full-screen player (outside of main scaffold)
+    // Search (no bottom nav)
+    GoRoute(
+      path: '/search',
+      builder: (context, state) => const SearchScreen(),
+    ),
+
+    // Favorites (no bottom nav)
+    GoRoute(
+      path: '/favorites',
+      builder: (context, state) => const FavoritesScreen(),
+    ),
+
+    // Settings (no bottom nav)
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
+    ),
+
+    // Full-screen player
     GoRoute(
       path: '/player',
       builder: (context, state) {

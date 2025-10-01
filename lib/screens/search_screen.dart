@@ -24,7 +24,6 @@ class _SearchScreenState extends State<SearchScreen> {
         title: Text(AppLocalizations.of(context)!.search),
         backgroundColor: const Color(0xFF00A4DC),
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [

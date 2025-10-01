@@ -50,15 +50,23 @@ class SystemEndpoint {
 
   /// Ping the server
   Future<JellyfinResponse<bool>> ping() async {
-    final response = await _client.request<String>(
-      'GET',
-      '/System/Ping',
-    );
+    try {
+      final response = await _client.request<String>(
+        'GET',
+        '/System/Ping',
+      );
 
-    return JellyfinResponse.success(
-      data: response.isSuccess,
-      statusCode: response.statusCode,
-    );
+      return JellyfinResponse.success(
+        data: response.isSuccess,
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      return JellyfinResponse.error(
+        message: 'Server ping failed: ${e.toString()}',
+        statusCode: 0,
+        error: e,
+      );
+    }
   }
 
   /// Get server configuration

@@ -51,5 +51,10 @@
   "languageCode": "Código de Idioma",
   "save": "Guardar",
   "cancel": "Cancelar",
-  "logoutConfirmation": "¿Estás seguro de que quieres cerrar sesión?"
+  "logoutConfirmation": "¿Estás seguro de que quieres cerrar sesión?",
+  "recentUsers": "Usuarios Recientes",
+  "show": "Mostrar",
+  "hide": "Ocultar",
+  "library": "Biblioteca",
+  "favorites": "Favoritos"
 }

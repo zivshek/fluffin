@@ -14,7 +14,7 @@ class AuthenticationEndpoint {
   }) async {
     final response = await _client.request<Map<String, dynamic>>(
       'POST',
-      '/Users/authenticatebyname',
+      '/Users/AuthenticateByName',
       data: {
         'Username': username,
         'Pw': password,

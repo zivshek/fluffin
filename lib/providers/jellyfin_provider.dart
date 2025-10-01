@@ -33,6 +33,15 @@ class JellyfinProvider extends ChangeNotifier {
         clientVersion: '1.0.0',
       );
 
+      // First, test server connectivity
+      final pingResponse = await _client!.system.ping();
+      if (!pingResponse.isSuccess) {
+        _error = 'Cannot connect to server. Please check the URL.';
+        _setLoading(false);
+        notifyListeners();
+        return false;
+      }
+
       // Authenticate
       final authResponse = await _client!.authentication.authenticateByName(
         username: username,

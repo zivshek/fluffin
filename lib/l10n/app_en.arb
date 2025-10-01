@@ -234,5 +234,25 @@
   "logoutConfirmation": "Are you sure you want to logout?",
   "@logoutConfirmation": {
     "description": "Logout confirmation message"
+  },
+  "recentUsers": "Recent Users",
+  "@recentUsers": {
+    "description": "Recent users section title"
+  },
+  "show": "Show",
+  "@show": {
+    "description": "Show button text"
+  },
+  "hide": "Hide",
+  "@hide": {
+    "description": "Hide button text"
+  },
+  "library": "Library",
+  "@library": {
+    "description": "Library screen title"
+  },
+  "favorites": "Favorites",
+  "@favorites": {
+    "description": "Favorites screen title"
   }
 }

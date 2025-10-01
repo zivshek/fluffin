@@ -59,6 +59,11 @@ class JellyfinClient {
           options.headers['Authorization'] =
               'MediaBrowser Client="$_clientName", Device="$_deviceId", DeviceId="$_deviceId", Version="$_clientVersion", Token="$_accessToken"';
         }
+
+        // Add headers for web compatibility
+        options.headers['Accept'] = 'application/json';
+        options.headers['Content-Type'] = 'application/json';
+
         handler.next(options);
       },
       onResponse: (response, handler) {
@@ -71,6 +76,18 @@ class JellyfinClient {
           _accessToken = null;
           _userId = null;
         }
+
+        // Log error for debugging
+        // Note: In production, you might want to use a proper logging solution
+        // ignore: avoid_print
+        print('Jellyfin API Error: ${error.message}');
+        if (error.response != null) {
+          // ignore: avoid_print
+          print('Status Code: ${error.response!.statusCode}');
+          // ignore: avoid_print
+          print('Response Data: ${error.response!.data}');
+        }
+
         handler.next(error);
       },
     ));
@@ -93,6 +110,18 @@ class JellyfinClient {
     T Function(dynamic)? fromJson,
   }) async {
     try {
+      // Log the request for debugging
+      // ignore: avoid_print
+      print('Making request: $method $_baseUrl$path');
+      if (queryParameters != null) {
+        // ignore: avoid_print
+        print('Query params: $queryParameters');
+      }
+      if (data != null) {
+        // ignore: avoid_print
+        print('Request data: $data');
+      }
+
       final response = await _dio.request(
         path,
         options: Options(method: method),
@@ -100,17 +129,55 @@ class JellyfinClient {
         data: data,
       );
 
+      // ignore: avoid_print
+      print('Response status: ${response.statusCode}');
+
       return JellyfinResponse<T>.success(
         data: fromJson != null ? fromJson(response.data) : response.data,
         statusCode: response.statusCode ?? 200,
       );
     } on DioException catch (e) {
+      // Enhanced error logging
+      // ignore: avoid_print
+      print('DioException: ${e.type}');
+      // ignore: avoid_print
+      print('Error message: ${e.message}');
+      if (e.response != null) {
+        // ignore: avoid_print
+        print('Response status: ${e.response!.statusCode}');
+        // ignore: avoid_print
+        print('Response data: ${e.response!.data}');
+        // ignore: avoid_print
+        print('Response headers: ${e.response!.headers}');
+      }
+
+      String errorMessage = e.message ?? 'Unknown error';
+
+      // Provide more specific error messages
+      if (e.type == DioExceptionType.connectionError) {
+        errorMessage =
+            'Cannot connect to server. Please check the URL and ensure the server is running.';
+      } else if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage =
+            'Connection timeout. Please check your network connection.';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Server response timeout. Please try again.';
+      } else if (e.response?.statusCode == 401) {
+        errorMessage = 'Invalid username or password.';
+      } else if (e.response?.statusCode == 404) {
+        errorMessage =
+            'Server endpoint not found. Please check the server URL.';
+      }
+
       return JellyfinResponse<T>.error(
-        message: e.message ?? 'Unknown error',
+        message: errorMessage,
         statusCode: e.response?.statusCode ?? 0,
         error: e,
       );
     } catch (e) {
+      // ignore: avoid_print
+      print('General error: $e');
+
       return JellyfinResponse<T>.error(
         message: e.toString(),
         statusCode: 0,

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
+import '../services/login_history_service.dart';
+import '../models/login_history.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,12 +19,33 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  List<ServerHistory> _serverHistory = [];
+  List<UserHistory> _userHistory = [];
+  bool _showServerDropdown = false;
+  bool _showUserHistory = false;
+
   @override
   void initState() {
     super.initState();
+    _loadHistory();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<JellyfinProvider>().tryAutoLogin();
     });
+  }
+
+  Future<void> _loadHistory() async {
+    final serverHistory = await LoginHistoryService.getServerHistory();
+    final userHistory = await LoginHistoryService.getUserHistory();
+
+    setState(() {
+      _serverHistory = serverHistory;
+      _userHistory = userHistory;
+    });
+
+    // Pre-fill with most recent server if available
+    if (serverHistory.isNotEmpty && _serverController.text.isEmpty) {
+      _serverController.text = serverHistory.first.url;
+    }
   }
 
   @override
@@ -66,23 +89,141 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                     ),
                     const SizedBox(height: 48),
-                    TextFormField(
-                      controller: _serverController,
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.serverUrl,
-                        hintText: AppLocalizations.of(context)!.serverUrlHint,
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.dns),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return AppLocalizations.of(context)!
-                              .pleaseEnterServerUrl;
-                        }
-                        return null;
-                      },
+
+                    // Server URL with dropdown
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          controller: _serverController,
+                          decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.serverUrl,
+                            hintText:
+                                AppLocalizations.of(context)!.serverUrlHint,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.dns),
+                            suffixIcon: _serverHistory.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(_showServerDropdown
+                                        ? Icons.keyboard_arrow_up
+                                        : Icons.keyboard_arrow_down),
+                                    onPressed: () {
+                                      setState(() {
+                                        _showServerDropdown =
+                                            !_showServerDropdown;
+                                      });
+                                    },
+                                  )
+                                : null,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return AppLocalizations.of(context)!
+                                  .pleaseEnterServerUrl;
+                            }
+                            return null;
+                          },
+                        ),
+
+                        // Server history dropdown
+                        if (_showServerDropdown && _serverHistory.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Column(
+                              children: _serverHistory.map((server) {
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.history, size: 20),
+                                  title: Text(server.name),
+                                  subtitle: Text(server.url),
+                                  onTap: () {
+                                    _serverController.text = server.url;
+                                    setState(() {
+                                      _showServerDropdown = false;
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
+
+                    // Show user history if available
+                    if (_userHistory.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Text(
+                            'Recent Users',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _showUserHistory = !_showUserHistory;
+                              });
+                            },
+                            child: Text(_showUserHistory ? 'Hide' : 'Show'),
+                          ),
+                        ],
+                      ),
+                      if (_showUserHistory)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: _userHistory.take(5).map((user) {
+                              return ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  backgroundColor: const Color(0xFF00A4DC),
+                                  child: Text(
+                                    user.displayName
+                                            ?.substring(0, 1)
+                                            .toUpperCase() ??
+                                        user.username
+                                            .substring(0, 1)
+                                            .toUpperCase(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                                title: Text(user.displayName ?? user.username),
+                                subtitle: Text(user.serverUrl),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.close, size: 16),
+                                  onPressed: () async {
+                                    await LoginHistoryService
+                                        .removeUserFromHistory(
+                                      user.username,
+                                      user.serverUrl,
+                                    );
+                                    _loadHistory();
+                                  },
+                                ),
+                                onTap: () {
+                                  _serverController.text = user.serverUrl;
+                                  _usernameController.text = user.username;
+                                  setState(() {
+                                    _showUserHistory = false;
+                                  });
+                                  FocusScope.of(context)
+                                      .requestFocus(FocusNode());
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                    ],
+
                     TextFormField(
                       controller: _usernameController,
                       decoration: InputDecoration(
@@ -133,11 +274,61 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     if (provider.error != null) ...[
                       const SizedBox(height: 16),
-                      Text(
-                        provider.error!,
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.error),
-                        textAlign: TextAlign.center,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.error,
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Theme.of(context).colorScheme.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Connection Error',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              provider.error!,
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onErrorContainer,
+                              ),
+                            ),
+                            if (provider.error!.contains('XMLHttpRequest') ||
+                                provider.error!.contains('CORS')) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'This is a CORS issue. Try running on desktop instead of web, or configure your Jellyfin server to allow web requests.',
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer,
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ],
                   ],
@@ -152,14 +343,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
+      final serverUrl = _serverController.text.trim();
+      final username = _usernameController.text.trim();
+      final password = _passwordController.text;
+
       final success = await context.read<JellyfinProvider>().login(
-            _serverController.text.trim(),
-            _usernameController.text.trim(),
-            _passwordController.text,
+            serverUrl,
+            username,
+            password,
           );
 
       if (success && mounted) {
-        context.go('/home');
+        // Save to history
+        final provider = context.read<JellyfinProvider>();
+        await LoginHistoryService.addServerToHistory(
+          serverUrl,
+          provider.currentUser?.name ?? 'Jellyfin Server',
+        );
+        await LoginHistoryService.addUserToHistory(
+          username: username,
+          serverUrl: serverUrl,
+          displayName: provider.currentUser?.name,
+        );
+
+        if (mounted) {
+          context.go('/library');
+        }
       }
     }
   }
