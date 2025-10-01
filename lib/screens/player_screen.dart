@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -59,7 +60,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load video: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .failedToLoadVideo(e.toString()))),
         );
         Navigator.of(context).pop();
       }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Fluffin',
+                      AppLocalizations.of(context)!.appTitle,
                       style:
                           Theme.of(context).textTheme.headlineLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -59,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Your smooth Jellyfin experience',
+                      AppLocalizations.of(context)!.appSubtitle,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Colors.grey[600],
                           ),
@@ -67,15 +68,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 48),
                     TextFormField(
                       controller: _serverController,
-                      decoration: const InputDecoration(
-                        labelText: 'Server URL',
-                        hintText: 'https://your-jellyfin-server.com',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.dns),
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.serverUrl,
+                        hintText: AppLocalizations.of(context)!.serverUrlHint,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.dns),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter server URL';
+                          return AppLocalizations.of(context)!
+                              .pleaseEnterServerUrl;
                         }
                         return null;
                       },
@@ -83,14 +85,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _usernameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Username',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.username,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.person),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter username';
+                          return AppLocalizations.of(context)!
+                              .pleaseEnterUsername;
                         }
                         return null;
                       },
@@ -99,14 +102,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock),
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.password,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter password';
+                          return AppLocalizations.of(context)!
+                              .pleaseEnterPassword;
                         }
                         return null;
                       },
@@ -124,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: provider.isLoading
                             ? const CircularProgressIndicator(
                                 color: Colors.white)
-                            : const Text('Sign In'),
+                            : Text(AppLocalizations.of(context)!.signIn),
                       ),
                     ),
                     if (provider.error != null) ...[

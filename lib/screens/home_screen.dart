@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/index.dart';
@@ -25,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Fluffin'),
+        title: Text(AppLocalizations.of(context)!.appTitle),
         backgroundColor: const Color(0xFF00A4DC),
         foregroundColor: Colors.white,
         actions: [
@@ -59,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => provider.loadLibrary(),
-                    child: const Text('Retry'),
+                    child: Text(AppLocalizations.of(context)!.retry),
                   ),
                 ],
               ),
@@ -67,8 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           if (provider.libraryItems.isEmpty) {
-            return const Center(
-              child: Text('No media found in your library'),
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noMediaFound),
             );
           }
 
@@ -163,24 +164,24 @@ class _SettingsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Settings'),
+      title: Text(AppLocalizations.of(context)!.settings),
       content: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SwitchListTile(
-                title: const Text('Dark Mode'),
+                title: Text(AppLocalizations.of(context)!.darkMode),
                 value: settings.isDarkMode,
                 onChanged: settings.setDarkMode,
               ),
               SwitchListTile(
-                title: const Text('Auto Skip Intros'),
+                title: Text(AppLocalizations.of(context)!.autoSkipIntros),
                 value: settings.autoSkipIntros,
                 onChanged: settings.setAutoSkipIntros,
               ),
               SwitchListTile(
-                title: const Text('Remember Subtitles'),
+                title: Text(AppLocalizations.of(context)!.rememberSubtitles),
                 value: settings.rememberSubtitles,
                 onChanged: settings.setRememberSubtitles,
               ),
@@ -191,7 +192,7 @@ class _SettingsDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(AppLocalizations.of(context)!.close),
         ),
       ],
     );

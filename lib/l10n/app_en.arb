@@ -1,0 +1,132 @@
+{
+  "appTitle": "Fluffin",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "appSubtitle": "Your smooth Jellyfin experience",
+  "@appSubtitle": {
+    "description": "The subtitle shown on login screen"
+  },
+  "serverUrl": "Server URL",
+  "@serverUrl": {
+    "description": "Label for server URL input field"
+  },
+  "serverUrlHint": "https://your-jellyfin-server.com",
+  "@serverUrlHint": {
+    "description": "Hint text for server URL input"
+  },
+  "username": "Username",
+  "@username": {
+    "description": "Label for username input field"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Label for password input field"
+  },
+  "signIn": "Sign In",
+  "@signIn": {
+    "description": "Sign in button text"
+  },
+  "pleaseEnterServerUrl": "Please enter server URL",
+  "@pleaseEnterServerUrl": {
+    "description": "Validation message for empty server URL"
+  },
+  "pleaseEnterUsername": "Please enter username",
+  "@pleaseEnterUsername": {
+    "description": "Validation message for empty username"
+  },
+  "pleaseEnterPassword": "Please enter password",
+  "@pleaseEnterPassword": {
+    "description": "Validation message for empty password"
+  },
+  "loginFailed": "Login failed: {error}",
+  "@loginFailed": {
+    "description": "Error message when login fails",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "The error message"
+      }
+    }
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings menu title"
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button text"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+  "noMediaFound": "No media found in your library",
+  "@noMediaFound": {
+    "description": "Message when library is empty"
+  },
+  "failedToLoadLibrary": "Failed to load library: {error}",
+  "@failedToLoadLibrary": {
+    "description": "Error message when library fails to load",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "The error message"
+      }
+    }
+  },
+  "darkMode": "Dark Mode",
+  "@darkMode": {
+    "description": "Dark mode setting label"
+  },
+  "autoSkipIntros": "Auto Skip Intros",
+  "@autoSkipIntros": {
+    "description": "Auto skip intros setting label"
+  },
+  "rememberSubtitles": "Remember Subtitles",
+  "@rememberSubtitles": {
+    "description": "Remember subtitles setting label"
+  },
+  "close": "Close",
+  "@close": {
+    "description": "Close button text"
+  },
+  "failedToLoadVideo": "Failed to load video: {error}",
+  "@failedToLoadVideo": {
+    "description": "Error message when video fails to load",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "The error message"
+      }
+    }
+  },
+  "subtitles": "Subtitles",
+  "@subtitles": {
+    "description": "Subtitles button label"
+  },
+  "audioTrack": "Audio Track",
+  "@audioTrack": {
+    "description": "Audio track button label"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language setting label"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language name"
+  },
+  "spanish": "Spanish",
+  "@spanish": {
+    "description": "Spanish language name"
+  },
+  "french": "French",
+  "@french": {
+    "description": "French language name"
+  },
+  "german": "German",
+  "@german": {
+    "description": "German language name"
+  }
+}

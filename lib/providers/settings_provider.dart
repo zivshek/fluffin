@@ -8,6 +8,7 @@ class SettingsProvider extends ChangeNotifier {
   String _preferredSubtitleLanguage = 'en';
   String _preferredAudioLanguage = 'en';
   double _playbackSpeed = 1.0;
+  String _appLanguage = 'en';
 
   bool get isDarkMode => _isDarkMode;
   bool get autoSkipIntros => _autoSkipIntros;
@@ -15,6 +16,7 @@ class SettingsProvider extends ChangeNotifier {
   String get preferredSubtitleLanguage => _preferredSubtitleLanguage;
   String get preferredAudioLanguage => _preferredAudioLanguage;
   double get playbackSpeed => _playbackSpeed;
+  String get appLanguage => _appLanguage;
 
   SettingsProvider() {
     _loadSettings();
@@ -29,6 +31,7 @@ class SettingsProvider extends ChangeNotifier {
     _preferredSubtitleLanguage = prefs.getString('subtitle_language') ?? 'en';
     _preferredAudioLanguage = prefs.getString('audio_language') ?? 'en';
     _playbackSpeed = prefs.getDouble('playback_speed') ?? 1.0;
+    _appLanguage = prefs.getString('app_language') ?? 'en';
 
     notifyListeners();
   }
@@ -72,6 +75,13 @@ class SettingsProvider extends ChangeNotifier {
     _playbackSpeed = speed;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('playback_speed', speed);
+    notifyListeners();
+  }
+
+  Future<void> setAppLanguage(String language) async {
+    _appLanguage = language;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_language', language);
     notifyListeners();
   }
 }

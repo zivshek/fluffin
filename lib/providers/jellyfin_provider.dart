@@ -36,7 +36,7 @@ class JellyfinProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Login failed: ${e.toString()}';
+      _error = 'Login failed: ${e.toString()}'; // TODO: Localize this
       _setLoading(false);
       notifyListeners();
       return false;
@@ -54,7 +54,7 @@ class JellyfinProvider extends ChangeNotifier {
       );
       _error = null;
     } catch (e) {
-      _error = 'Failed to load library: ${e.toString()}';
+      _error = 'Failed to load library: ${e.toString()}'; // TODO: Localize this
     }
     _setLoading(false);
     notifyListeners();
