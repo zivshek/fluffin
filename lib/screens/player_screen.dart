@@ -40,18 +40,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _initializePlayer() async {
     try {
       final provider = context.read<JellyfinProvider>();
-      final streamUrl = await provider.api.getStreamUrl(widget.itemId);
+      final streamUrl = provider.getStreamUrl(widget.itemId);
+
+      if (streamUrl == null) {
+        throw Exception('Unable to get stream URL');
+      }
 
       await _player.open(Media(streamUrl));
-      await provider.api.reportPlaybackStart(widget.itemId, 0);
+
+      // Report playback start using new API
+      if (provider.client != null) {
+        await provider.client!.playback.reportPlaybackStart(
+          itemId: widget.itemId,
+          positionTicks: 0,
+        );
+      }
 
       // Listen for position changes to report progress
       _player.stream.position.listen((position) {
-        if (position.inMilliseconds > 0) {
-          provider.api.reportPlaybackProgress(
-            widget.itemId,
-            position.inMicroseconds * 10, // Convert to ticks
-            !_player.state.playing,
+        if (position.inMilliseconds > 0 && provider.client != null) {
+          provider.client!.playback.reportPlaybackProgress(
+            itemId: widget.itemId,
+            positionTicks: position.inMicroseconds * 10, // Convert to ticks
+            isPaused: !_player.state.playing,
           );
         }
       });
@@ -299,10 +310,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     // Report playback stopped
     final position = _player.state.position;
-    context.read<JellyfinProvider>().api.reportPlaybackStopped(
-          widget.itemId,
-          position.inMicroseconds * 10,
-        );
+    final provider = context.read<JellyfinProvider>();
+    if (provider.client != null) {
+      provider.client!.playback.reportPlaybackStopped(
+        itemId: widget.itemId,
+        positionTicks: position.inMicroseconds * 10,
+      );
+    }
 
     _player.dispose();
 

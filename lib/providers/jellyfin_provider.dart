@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/index.dart';
-import '../services/jellyfin_api.dart';
+import '../jellyfin_dart/jellyfin_dart.dart';
 
 class JellyfinProvider extends ChangeNotifier {
-  final JellyfinApi _api = JellyfinApi();
+  JellyfinClient? _client;
 
   JellyfinUser? _currentUser;
   List<MediaItem> _libraryItems = [];
@@ -15,26 +15,47 @@ class JellyfinProvider extends ChangeNotifier {
   List<MediaItem> get libraryItems => _libraryItems;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isLoggedIn => _currentUser != null;
+  bool get isLoggedIn =>
+      _currentUser != null && _client?.isAuthenticated == true;
 
-  JellyfinApi get api => _api;
+  JellyfinClient? get client => _client;
 
   Future<bool> login(String serverUrl, String username, String password) async {
     _setLoading(true);
     _error = null;
 
     try {
-      _api.setServerUrl(serverUrl);
-      _currentUser = await _api.authenticateByName(username, password);
+      // Create new client
+      _client = JellyfinClient(
+        baseUrl: serverUrl,
+        deviceId: 'fluffin-client',
+        clientName: 'Fluffin',
+        clientVersion: '1.0.0',
+      );
 
-      // Save login info
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('server_url', serverUrl);
-      await prefs.setString('username', username);
+      // Authenticate
+      final authResponse = await _client!.authentication.authenticateByName(
+        username: username,
+        password: password,
+      );
 
-      _setLoading(false);
-      notifyListeners();
-      return true;
+      if (authResponse.isSuccess) {
+        _currentUser = authResponse.data!.user;
+
+        // Save login info
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('server_url', serverUrl);
+        await prefs.setString('username', username);
+
+        _setLoading(false);
+        notifyListeners();
+        return true;
+      } else {
+        _error = authResponse.message ?? 'Login failed';
+        _setLoading(false);
+        notifyListeners();
+        return false;
+      }
     } catch (e) {
       _error = 'Login failed: ${e.toString()}'; // TODO: Localize this
       _setLoading(false);
@@ -44,15 +65,21 @@ class JellyfinProvider extends ChangeNotifier {
   }
 
   Future<void> loadLibrary() async {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || _client == null) return;
 
     _setLoading(true);
     try {
-      _libraryItems = await _api.getLibraryItems(
+      final response = await _client!.library.getItems(
         includeItemTypes: ['Movie', 'Episode', 'Series'],
         limit: 100,
       );
-      _error = null;
+
+      if (response.isSuccess) {
+        _libraryItems = response.data!.items;
+        _error = null;
+      } else {
+        _error = response.message ?? 'Failed to load library';
+      }
     } catch (e) {
       _error = 'Failed to load library: ${e.toString()}'; // TODO: Localize this
     }
@@ -61,6 +88,16 @@ class JellyfinProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    if (_client != null) {
+      try {
+        await _client!.authentication.logout();
+      } catch (e) {
+        // Ignore logout errors
+      }
+      _client?.dispose();
+      _client = null;
+    }
+
     _currentUser = null;
     _libraryItems = [];
 
@@ -77,9 +114,38 @@ class JellyfinProvider extends ChangeNotifier {
     final username = prefs.getString('username');
 
     if (serverUrl != null && username != null) {
-      _api.setServerUrl(serverUrl);
+      // Create client for potential future auto-login
+      _client = JellyfinClient(
+        baseUrl: serverUrl,
+        deviceId: 'fluffin-client',
+        clientName: 'Fluffin',
+        clientVersion: '1.0.0',
+      );
       // Note: In a real app, you'd want to store and use refresh tokens
       // For now, user will need to re-enter password
+    }
+  }
+
+  /// Get streaming URL for a media item
+  String? getStreamUrl(String itemId) {
+    if (_client == null || !isLoggedIn) return null;
+    return _client!.playback.getStreamUrl(itemId);
+  }
+
+  /// Search for media items
+  Future<List<MediaItem>> searchItems(String query) async {
+    if (_client == null || !isLoggedIn) return [];
+
+    try {
+      final response = await _client!.library.search(
+        searchTerm: query,
+        includeItemTypes: ['Movie', 'Episode', 'Series'],
+        limit: 50,
+      );
+
+      return response.isSuccess ? response.data! : [];
+    } catch (e) {
+      return [];
     }
   }
 

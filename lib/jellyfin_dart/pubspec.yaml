@@ -1,0 +1,21 @@
+name: jellyfin_dart
+description: A comprehensive Dart/Flutter wrapper for the Jellyfin Media Server API
+version: 0.1.0
+homepage: https://github.com/your-username/jellyfin_dart
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  dio: ^5.3.2
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^3.0.0
+
+topics:
+  - jellyfin
+  - media
+  - streaming
+  - api
+  - client

@@ -126,22 +126,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       final provider = context.read<JellyfinProvider>();
-      final results = await provider.api.getLibraryItems(
-        includeItemTypes: ['Movie', 'Episode', 'Series'],
-        limit: 50,
-      );
-
-      // Simple client-side filtering for now
-      // In a real app, you'd use Jellyfin's search API
-      final filteredResults = results
-          .where((item) =>
-              item.name.toLowerCase().contains(query.toLowerCase()) ||
-              (item.overview?.toLowerCase().contains(query.toLowerCase()) ??
-                  false))
-          .toList();
+      final results = await provider.searchItems(query);
 
       setState(() {
-        _searchResults = filteredResults;
+        _searchResults = results;
         _isSearching = false;
       });
     } catch (e) {
