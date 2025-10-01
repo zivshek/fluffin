@@ -7,7 +7,11 @@ import 'package:media_kit/media_kit.dart';
 import 'providers/jellyfin_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/main_scaffold.dart';
 import 'screens/home_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/downloads_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/player_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -62,15 +66,38 @@ class FluffinApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
+  initialLocation: '/login',
   routes: [
+    // Auth flow
     GoRoute(
-      path: '/',
+      path: '/login',
       builder: (context, state) => const LoginScreen(),
     ),
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const HomeScreen(),
+
+    // Main app with bottom navigation
+    ShellRoute(
+      builder: (context, state, child) => MainScaffold(child: child),
+      routes: [
+        GoRoute(
+          path: '/home',
+          builder: (context, state) => const HomeScreen(),
+        ),
+        GoRoute(
+          path: '/search',
+          builder: (context, state) => const SearchScreen(),
+        ),
+        GoRoute(
+          path: '/downloads',
+          builder: (context, state) => const DownloadsScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsScreen(),
+        ),
+      ],
     ),
+
+    // Full-screen player (outside of main scaffold)
     GoRoute(
       path: '/player',
       builder: (context, state) {

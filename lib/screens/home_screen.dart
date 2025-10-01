@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
-import '../providers/settings_provider.dart';
 import '../models/index.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,21 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(AppLocalizations.of(context)!.appTitle),
         backgroundColor: const Color(0xFF00A4DC),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showSettingsDialog(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await context.read<JellyfinProvider>().logout();
-              if (mounted) {
-                context.go('/');
-              }
-            },
-          ),
-        ],
+        automaticallyImplyLeading: false,
       ),
       body: Consumer<JellyfinProvider>(
         builder: (context, provider, _) {
@@ -89,13 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-    );
-  }
-
-  void _showSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const _SettingsDialog(),
     );
   }
 }
@@ -154,47 +132,6 @@ class _MediaCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SettingsDialog extends StatelessWidget {
-  const _SettingsDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(AppLocalizations.of(context)!.settings),
-      content: Consumer<SettingsProvider>(
-        builder: (context, settings, _) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.darkMode),
-                value: settings.isDarkMode,
-                onChanged: settings.setDarkMode,
-              ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.autoSkipIntros),
-                value: settings.autoSkipIntros,
-                onChanged: settings.setAutoSkipIntros,
-              ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.rememberSubtitles),
-                value: settings.rememberSubtitles,
-                onChanged: settings.setRememberSubtitles,
-              ),
-            ],
-          );
-        },
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(AppLocalizations.of(context)!.close),
-        ),
-      ],
     );
   }
 }

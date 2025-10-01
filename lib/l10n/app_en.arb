@@ -128,5 +128,111 @@
   "german": "German",
   "@german": {
     "description": "German language name"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home tab label"
+  },
+  "search": "Search",
+  "@search": {
+    "description": "Search tab label"
+  },
+  "downloads": "Downloads",
+  "@downloads": {
+    "description": "Downloads tab label"
+  },
+  "searchHint": "Search movies, shows, episodes...",
+  "@searchHint": {
+    "description": "Search input hint text"
+  },
+  "noSearchResults": "No results found",
+  "@noSearchResults": {
+    "description": "Message when search returns no results"
+  },
+  "searchPrompt": "Start typing to search your library",
+  "@searchPrompt": {
+    "description": "Prompt to encourage user to search"
+  },
+  "searchError": "Search failed: {error}",
+  "@searchError": {
+    "description": "Error message when search fails",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "The error message"
+      }
+    }
+  },
+  "downloadsComingSoon": "Downloads Coming Soon",
+  "@downloadsComingSoon": {
+    "description": "Downloads feature coming soon message"
+  },
+  "downloadsDescription": "Offline downloads will be available in a future update",
+  "@downloadsDescription": {
+    "description": "Description of downloads feature"
+  },
+  "appearance": "Appearance",
+  "@appearance": {
+    "description": "Appearance settings section"
+  },
+  "playback": "Playback",
+  "@playback": {
+    "description": "Playback settings section"
+  },
+  "account": "Account",
+  "@account": {
+    "description": "Account settings section"
+  },
+  "about": "About",
+  "@about": {
+    "description": "About settings section"
+  },
+  "darkModeDescription": "Use dark theme throughout the app",
+  "@darkModeDescription": {
+    "description": "Description for dark mode setting"
+  },
+  "autoSkipIntrosDescription": "Automatically skip intro sequences when available",
+  "@autoSkipIntrosDescription": {
+    "description": "Description for auto skip intros setting"
+  },
+  "rememberSubtitlesDescription": "Remember your subtitle preferences",
+  "@rememberSubtitlesDescription": {
+    "description": "Description for remember subtitles setting"
+  },
+  "preferredSubtitleLanguage": "Preferred Subtitle Language",
+  "@preferredSubtitleLanguage": {
+    "description": "Preferred subtitle language setting"
+  },
+  "currentUser": "Current User",
+  "@currentUser": {
+    "description": "Current user label"
+  },
+  "version": "Version",
+  "@version": {
+    "description": "App version label"
+  },
+  "licenses": "Open Source Licenses",
+  "@licenses": {
+    "description": "Open source licenses label"
+  },
+  "selectLanguage": "Select Language",
+  "@selectLanguage": {
+    "description": "Language selection dialog title"
+  },
+  "languageCode": "Language Code",
+  "@languageCode": {
+    "description": "Language code input label"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Save button text"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "logoutConfirmation": "Are you sure you want to logout?",
+  "@logoutConfirmation": {
+    "description": "Logout confirmation message"
   }
 }

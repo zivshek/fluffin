@@ -64,8 +64,22 @@ On first launch, you'll need to:
 - **State Management**: Provider pattern for clean state management
 - **API Layer**: Dio-based HTTP client for Jellyfin API communication
 - **Video Playback**: media_kit with mpv backend for optimal performance
-- **Navigation**: go_router for declarative routing
+- **Navigation**: go_router with ShellRoute for bottom navigation
 - **Storage**: SharedPreferences for settings, SecureStorage for credentials
+- **Internationalization**: Flutter l10n with support for EN, ES, FR, DE
+
+## App Structure
+
+```
+├── Login Screen
+└── Main App (Bottom Navigation)
+    ├── Home/Library
+    ├── Search
+    ├── Downloads (Coming Soon)
+    └── Settings
+    
+Player Screen (Full-screen overlay)
+```
 
 ## Contributing
 
