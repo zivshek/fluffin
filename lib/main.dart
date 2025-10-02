@@ -13,7 +13,7 @@ import 'screens/search_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/player_screen.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'generated/l10n/app_localizations.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +36,7 @@ class FluffinApp extends StatelessWidget {
         builder: (context, settings, _) {
           return MaterialApp.router(
             title: 'Fluffin',
-            localizationsDelegates: const [
+            localizationsDelegates: [
               AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
@@ -77,7 +77,13 @@ final GoRouter _router = GoRouter(
     // Login flow
     GoRoute(
       path: '/login',
-      builder: (context, state) => const LoginScreen(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return LoginScreen(
+          prefilledServerUrl: extra?['serverUrl'],
+          prefilledUsername: extra?['username'],
+        );
+      },
     ),
 
     // Library content (no bottom nav)

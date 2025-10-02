@@ -12,7 +12,7 @@ class AuthenticationEndpoint {
     required String username,
     required String password,
   }) async {
-    final response = await _client.request<Map<String, dynamic>>(
+    final response = await _client.requestWithoutAuth<Map<String, dynamic>>(
       'POST',
       '/Users/AuthenticateByName',
       data: {
@@ -23,8 +23,17 @@ class AuthenticationEndpoint {
 
     if (response.isSuccess) {
       final data = response.data!;
-      final accessToken = data['AccessToken'] as String;
-      final user = JellyfinUser.fromJson(data['User'] as Map<String, dynamic>);
+      final accessToken = data['AccessToken'] as String?;
+      final userData = data['User'] as Map<String, dynamic>?;
+
+      if (accessToken == null || userData == null) {
+        return JellyfinResponse.error(
+          message: 'Invalid response from server',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final user = JellyfinUser.fromJson(userData);
 
       // Set authentication in client
       _client.setAuthentication(accessToken, user.id);

@@ -56,7 +56,7 @@ class JellyfinClient {
       onRequest: (options, handler) {
         // Add authentication header if available
         if (_accessToken != null) {
-          options.headers['Authorization'] =
+          options.headers['X-Emby-Authorization'] =
               'MediaBrowser Client="$_clientName", Device="$_deviceId", DeviceId="$_deviceId", Version="$_clientVersion", Token="$_accessToken"';
         }
 
@@ -99,6 +99,102 @@ class JellyfinClient {
     playback = PlaybackEndpoint(this);
     user = UserEndpoint(this);
     system = SystemEndpoint(this);
+  }
+
+  /// Internal method for making HTTP requests without authentication
+  Future<JellyfinResponse<T>> requestWithoutAuth<T>(
+    String method,
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    dynamic data,
+    T Function(dynamic)? fromJson,
+  }) async {
+    try {
+      // Log the request for debugging
+      // ignore: avoid_print
+      print('Making unauthenticated request: $method $_baseUrl$path');
+      if (queryParameters != null) {
+        // ignore: avoid_print
+        print('Query params: $queryParameters');
+      }
+      if (data != null) {
+        // ignore: avoid_print
+        print('Request data: $data');
+      }
+
+      final response = await _dio.request(
+        path,
+        options: Options(
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': '$_clientName/$_clientVersion',
+            'X-Emby-Authorization':
+                'MediaBrowser Client="$_clientName", Device="$_deviceId", DeviceId="$_deviceId", Version="$_clientVersion"',
+          },
+        ),
+        queryParameters: queryParameters,
+        data: data,
+      );
+
+      // ignore: avoid_print
+      print('Response status: ${response.statusCode}');
+
+      return JellyfinResponse<T>.success(
+        data: fromJson != null ? fromJson(response.data) : response.data,
+        statusCode: response.statusCode ?? 200,
+      );
+    } on DioException catch (e) {
+      // Enhanced error logging
+      // ignore: avoid_print
+      print('DioException: ${e.type}');
+      // ignore: avoid_print
+      print('Error message: ${e.message}');
+      if (e.response != null) {
+        // ignore: avoid_print
+        print('Response status: ${e.response!.statusCode}');
+        // ignore: avoid_print
+        print('Response data: ${e.response!.data}');
+        // ignore: avoid_print
+        print('Response headers: ${e.response!.headers}');
+      }
+
+      String errorMessage = e.message ?? 'Unknown error';
+
+      // Provide more specific error messages
+      if (e.type == DioExceptionType.connectionError) {
+        errorMessage =
+            'Cannot connect to server. Please check the URL and ensure the server is running.';
+      } else if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage =
+            'Connection timeout. Please check your network connection.';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Server response timeout. Please try again.';
+      } else if (e.response?.statusCode == 401) {
+        errorMessage = 'Invalid username or password.';
+      } else if (e.response?.statusCode == 404) {
+        errorMessage =
+            'Server endpoint not found. Please check the server URL.';
+      } else if (e.response?.statusCode == 400) {
+        errorMessage = 'Bad request. Please check your input.';
+      }
+
+      return JellyfinResponse<T>.error(
+        message: errorMessage,
+        statusCode: e.response?.statusCode ?? 0,
+        error: e,
+      );
+    } catch (e) {
+      // ignore: avoid_print
+      print('General error: $e');
+
+      return JellyfinResponse<T>.error(
+        message: e.toString(),
+        statusCode: 0,
+        error: e,
+      );
+    }
   }
 
   /// Internal method for making HTTP requests

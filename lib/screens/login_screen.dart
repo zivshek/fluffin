@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../generated/l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
 import '../services/login_history_service.dart';
 import '../models/login_history.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? prefilledServerUrl;
+  final String? prefilledUsername;
+
+  const LoginScreen({
+    super.key,
+    this.prefilledServerUrl,
+    this.prefilledUsername,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -28,6 +35,15 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _loadHistory();
+
+    // Pre-fill fields if provided
+    if (widget.prefilledServerUrl != null) {
+      _serverController.text = widget.prefilledServerUrl!;
+    }
+    if (widget.prefilledUsername != null) {
+      _usernameController.text = widget.prefilledUsername!;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<JellyfinProvider>().tryAutoLogin();
     });
@@ -42,8 +58,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _userHistory = userHistory;
     });
 
-    // Pre-fill with most recent server if available
-    if (serverHistory.isNotEmpty && _serverController.text.isEmpty) {
+    // Pre-fill with most recent server if available and no prefilled value
+    if (serverHistory.isNotEmpty &&
+        _serverController.text.isEmpty &&
+        widget.prefilledServerUrl == null) {
       _serverController.text = serverHistory.first.url;
     }
   }
@@ -51,6 +69,15 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(AppLocalizations.of(context)!.signIn),
+        backgroundColor: const Color(0xFF00A4DC),
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/libraries'),
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -58,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
             builder: (context, provider, _) {
               if (provider.isLoggedIn) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  context.go('/home');
+                  context.go('/library');
                 });
               }
 
@@ -364,6 +391,7 @@ class _LoginScreenState extends State<LoginScreen> {
           username: username,
           serverUrl: serverUrl,
           displayName: provider.currentUser?.name,
+          password: password, // Store password securely
         );
 
         if (mounted) {

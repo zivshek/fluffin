@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import '../generated/l10n/app_localizations.dart';
 import '../services/login_history_service.dart';
 import '../models/login_history.dart';
+import '../providers/jellyfin_provider.dart';
 
 class LibrarySelectionScreen extends StatefulWidget {
   const LibrarySelectionScreen({super.key});
@@ -49,28 +51,21 @@ class _LibrarySelectionScreenState extends State<LibrarySelectionScreen> {
       ),
       body: _userHistory.isEmpty ? _buildEmptyState() : _buildLibraryList(),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, // Library tab selected
+        currentIndex: 0, // Libraries tab selected
         onTap: (index) {
           switch (index) {
             case 0:
-              // Home - could be recent/continue watching
+              // Already on Libraries
               break;
             case 1:
-              // Already on Library
-              break;
-            case 2:
               context.go('/settings');
               break;
           }
         },
         items: [
           BottomNavigationBarItem(
-            icon: const Icon(Icons.home),
-            label: AppLocalizations.of(context)!.home,
-          ),
-          BottomNavigationBarItem(
             icon: const Icon(Icons.video_library),
-            label: AppLocalizations.of(context)!.library,
+            label: 'Libraries',
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.settings),
@@ -127,9 +122,41 @@ class _LibrarySelectionScreenState extends State<LibrarySelectionScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFF00A4DC),
-              child: const Icon(Icons.account_circle, color: Colors.white),
+            leading: Stack(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: Color(0xFF00A4DC),
+                  child: Icon(Icons.account_circle, color: Colors.white),
+                ),
+                // Show lock icon if credentials are stored
+                FutureBuilder<bool>(
+                  future: LoginHistoryService.hasStoredCredentials(
+                    library.username,
+                    library.serverUrl,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.data == true) {
+                      return Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.lock,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
             ),
             title: Text(library.displayName ?? library.username),
             subtitle: Column(
@@ -146,9 +173,9 @@ class _LibrarySelectionScreenState extends State<LibrarySelectionScreen> {
             ),
             trailing: PopupMenuButton(
               itemBuilder: (context) => [
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'edit',
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.edit),
                       SizedBox(width: 8),
@@ -156,9 +183,9 @@ class _LibrarySelectionScreenState extends State<LibrarySelectionScreen> {
                     ],
                   ),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'remove',
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.delete, color: Colors.red),
                       SizedBox(width: 8),
@@ -200,9 +227,99 @@ class _LibrarySelectionScreenState extends State<LibrarySelectionScreen> {
   }
 
   Future<void> _connectToLibrary(UserHistory library) async {
-    // For now, redirect to login with pre-filled info
-    // In the future, we could try to auto-connect with stored tokens
-    context.go('/login');
+    // Check if we have stored credentials
+    final hasCredentials = await LoginHistoryService.hasStoredCredentials(
+      library.username,
+      library.serverUrl,
+    );
+
+    if (hasCredentials) {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        // Get stored password
+        final password = await LoginHistoryService.getStoredPassword(
+          library.username,
+          library.serverUrl,
+        );
+
+        if (password != null && mounted) {
+          // Attempt auto-login
+          final provider = context.read<JellyfinProvider>();
+          final success = await provider.login(
+            library.serverUrl,
+            library.username,
+            password,
+          );
+
+          if (mounted) {
+            Navigator.of(context).pop(); // Close loading dialog
+
+            if (success) {
+              // Update last login time
+              await LoginHistoryService.addUserToHistory(
+                username: library.username,
+                serverUrl: library.serverUrl,
+                displayName: library.displayName,
+                password: password,
+              );
+
+              // Navigate to library
+              context.go('/library');
+            } else {
+              // Auto-login failed, redirect to login screen
+              _showLoginFailedDialog(library);
+            }
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          _showLoginFailedDialog(library);
+        }
+      }
+    } else {
+      // No stored credentials, redirect to login with pre-filled info
+      context.go('/login', extra: {
+        'serverUrl': library.serverUrl,
+        'username': library.username,
+      });
+    }
+  }
+
+  void _showLoginFailedDialog(UserHistory library) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Failed'),
+        content: const Text(
+            'Stored credentials are no longer valid. Please login again.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Redirect to login with pre-filled info
+              context.go('/login', extra: {
+                'serverUrl': library.serverUrl,
+                'username': library.username,
+              });
+            },
+            child: const Text('Login Again'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _removeLibrary(UserHistory library) async {
