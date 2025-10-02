@@ -13,7 +13,7 @@ class MediaSource {
 
   factory MediaSource.fromJson(Map<String, dynamic> json) {
     return MediaSource(
-      id: json['Id'] as String,
+      id: json['Id'] as String? ?? '',
       container: json['Container'] as String?,
       mediaStreams: json['MediaStreams'] != null
           ? (json['MediaStreams'] as List)

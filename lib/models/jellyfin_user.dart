@@ -11,8 +11,8 @@ class JellyfinUser {
 
   factory JellyfinUser.fromJson(Map<String, dynamic> json) {
     return JellyfinUser(
-      id: json['Id'] as String,
-      name: json['Name'] as String,
+      id: json['Id'] as String? ?? '',
+      name: json['Name'] as String? ?? 'Unknown User',
       primaryImageTag: json['PrimaryImageTag'] as String?,
     );
   }

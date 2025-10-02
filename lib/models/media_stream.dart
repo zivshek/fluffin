@@ -17,8 +17,8 @@ class MediaStream {
 
   factory MediaStream.fromJson(Map<String, dynamic> json) {
     return MediaStream(
-      index: json['Index'] as int,
-      type: json['Type'] as String,
+      index: json['Index'] as int? ?? 0,
+      type: json['Type'] as String? ?? 'Unknown',
       codec: json['Codec'] as String?,
       language: json['Language'] as String?,
       displayTitle: json['DisplayTitle'] as String?,

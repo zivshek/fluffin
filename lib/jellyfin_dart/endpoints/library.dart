@@ -279,8 +279,8 @@ class LibraryInfo {
 
   factory LibraryInfo.fromJson(Map<String, dynamic> json) {
     return LibraryInfo(
-      id: json['Id'] as String,
-      name: json['Name'] as String,
+      id: json['Id'] as String? ?? '',
+      name: json['Name'] as String? ?? 'Unknown Library',
       collectionType: json['CollectionType'] as String? ?? 'mixed',
       primaryImageTag: json['PrimaryImageTag'] as String?,
     );

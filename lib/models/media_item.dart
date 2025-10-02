@@ -24,9 +24,9 @@ class MediaItem {
 
   factory MediaItem.fromJson(Map<String, dynamic> json) {
     return MediaItem(
-      id: json['Id'] as String,
-      name: json['Name'] as String,
-      type: json['Type'] as String,
+      id: json['Id'] as String? ?? '',
+      name: json['Name'] as String? ?? 'Unknown',
+      type: json['Type'] as String? ?? 'Unknown',
       overview: json['Overview'] as String?,
       runTimeTicks: json['RunTimeTicks'] as int?,
       primaryImageTag: json['PrimaryImageTag'] as String?,
