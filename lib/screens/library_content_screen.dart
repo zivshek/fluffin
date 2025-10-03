@@ -90,189 +90,373 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
     final movies = items.where((item) => item.type == 'Movie').toList();
     final series = items.where((item) => item.type == 'Series').toList();
     final episodes = items.where((item) => item.type == 'Episode').toList();
+    final continueWatching = items
+        .where((item) => item.userData?.playbackPositionTicks != null)
+        .toList();
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Continue Watching Section
-          if (items.any((item) => item.userData?.playbackPositionTicks != null))
-            _buildSection(
-              'Continue Watching',
-              items
-                  .where((item) => item.userData?.playbackPositionTicks != null)
-                  .toList(),
-              isHorizontal: true,
-            ),
+          const SizedBox(height: 16),
 
-          // Recently Added
-          _buildSection(
-            'Recently Added',
-            items.take(10).toList(),
-            isHorizontal: true,
-          ),
+          // Continue Watching Section
+          if (continueWatching.isNotEmpty)
+            _buildContinueWatchingSection(continueWatching),
+
+          // Next Up Section (episodes from series in continue watching)
+          if (episodes.isNotEmpty)
+            _buildNextUpSection(episodes.take(4).toList()),
+
+          // Library Categories Section
+          _buildLibraryCategoriesSection(movies, series),
 
           // Movies Section
-          if (movies.isNotEmpty) _buildSection('Movies', movies),
+          if (movies.isNotEmpty) _buildMoviesSection(movies),
 
           // TV Shows Section
-          if (series.isNotEmpty) _buildSection('TV Shows', series),
+          if (series.isNotEmpty) _buildTVShowsSection(series),
 
-          // Episodes Section (if any standalone episodes)
-          if (episodes.isNotEmpty) _buildSection('Episodes', episodes),
+          const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Widget _buildSection(String title, List<MediaItem> items,
-      {bool isHorizontal = false}) {
-    if (items.isEmpty) return const SizedBox.shrink();
-
+  Widget _buildContinueWatchingSection(List<MediaItem> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-          child: Row(
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Continue Watching',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: items.length.clamp(0, 10),
+            itemBuilder: (context, index) {
+              return Container(
+                width: 280,
+                margin: const EdgeInsets.only(right: 16),
+                child: _ContinueWatchingCard(item: items[index]),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildNextUpSection(List<MediaItem> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Next up',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 160,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: items.length.clamp(0, 6),
+            itemBuilder: (context, index) {
+              return Container(
+                width: 280,
+                margin: const EdgeInsets.only(right: 16),
+                child: _NextUpCard(item: items[index]),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildLibraryCategoriesSection(
+      List<MediaItem> movies, List<MediaItem> series) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Library',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 120,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const Spacer(),
-              if (items.length > 6)
-                TextButton(
-                  onPressed: () {
-                    // TODO: Navigate to full section view
-                  },
-                  child: const Text('See All'),
+              if (movies.isNotEmpty)
+                Container(
+                  width: 200,
+                  margin: const EdgeInsets.only(right: 16),
+                  child: _LibraryCategoryCard(
+                    title: 'Movies',
+                    count: movies.length,
+                    backgroundImage: movies.first,
+                  ),
+                ),
+              if (series.isNotEmpty)
+                Container(
+                  width: 200,
+                  margin: const EdgeInsets.only(right: 16),
+                  child: _LibraryCategoryCard(
+                    title: 'TV Shows',
+                    count: series.length,
+                    backgroundImage: series.first,
+                  ),
                 ),
             ],
           ),
         ),
-        if (isHorizontal)
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: items.length.clamp(0, 10),
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 140,
-                  margin: const EdgeInsets.only(right: 12),
-                  child: _MediaCard(item: items[index], isCompact: true),
-                );
-              },
-            ),
-          )
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildMoviesSection(List<MediaItem> movies) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const Text(
+                'Movies',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  // TODO: Navigate to movies view
+                },
+                child: const Text(
+                  'See All',
+                  style: TextStyle(color: Color(0xFF00A4DC)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.7,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: items.length.clamp(0, 6),
+            itemCount: movies.length.clamp(0, 10),
             itemBuilder: (context, index) {
-              return _MediaCard(item: items[index]);
+              return Container(
+                width: 130,
+                margin: const EdgeInsets.only(right: 12),
+                child: _PosterCard(item: movies[index]),
+              );
             },
           ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildTVShowsSection(List<MediaItem> series) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const Text(
+                'TV Shows',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  // TODO: Navigate to TV shows view
+                },
+                child: const Text(
+                  'See All',
+                  style: TextStyle(color: Color(0xFF00A4DC)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: series.length.clamp(0, 10),
+            itemBuilder: (context, index) {
+              return Container(
+                width: 130,
+                margin: const EdgeInsets.only(right: 12),
+                child: _PosterCard(item: series[index]),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }
 }
 
-class _MediaCard extends StatelessWidget {
+class _ContinueWatchingCard extends StatelessWidget {
   final MediaItem item;
-  final bool isCompact;
 
-  const _MediaCard({required this.item, this.isCompact = false});
+  const _ContinueWatchingCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          context.go('/player', extra: {
-            'itemId': item.id,
-            'title': item.name,
-          });
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
+    final provider = context.read<JellyfinProvider>();
+    final imageUrl =
+        provider.getImageUrl(item.id, maxWidth: 500, maxHeight: 280);
+    final progress = _calculateProgress(item);
+    final remainingTime = _calculateRemainingTime(item);
+
+    return InkWell(
+      onTap: () {
+        context.go('/player', extra: {
+          'itemId': item.id,
+          'title': item.name,
+        });
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image with play button
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
                 color: Colors.grey[300],
-                child: Stack(
-                  children: [
+                borderRadius: BorderRadius.circular(12),
+                image: imageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(imageUrl),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: Stack(
+                children: [
+                  if (imageUrl == null)
                     const Center(
                       child: Icon(Icons.movie, size: 48, color: Colors.grey),
                     ),
-                    // Progress indicator for continue watching
-                    if (item.userData?.playbackPositionTicks != null)
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: LinearProgressIndicator(
-                          value: _calculateProgress(item),
-                          backgroundColor: Colors.black26,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFF00A4DC),
+                  // Play button
+                  const Center(
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.white,
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.black,
+                        size: 32,
+                      ),
+                    ),
+                  ),
+                  // Progress bar at bottom of image
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: progress,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF00A4DC),
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(12),
+                              bottomRight: Radius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (!isCompact)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: Theme.of(context).textTheme.titleSmall,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (item.overview != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        item.overview!,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.all(4.0),
-                child: Text(
-                  item.name,
-                  style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          // Title underneath
+          Text(
+            item.name,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          // Remaining time
+          Text(
+            'Remaining time: $remainingTime',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -281,5 +465,247 @@ class _MediaCard extends StatelessWidget {
     final position = item.userData?.playbackPositionTicks ?? 0;
     final duration = item.runTimeTicks ?? 1;
     return duration > 0 ? (position / duration).clamp(0.0, 1.0) : 0.0;
+  }
+
+  String _calculateRemainingTime(MediaItem item) {
+    final position = item.userData?.playbackPositionTicks ?? 0;
+    final duration = item.runTimeTicks ?? 0;
+    final remaining = duration - position;
+
+    if (remaining <= 0) return '0m';
+
+    final minutes =
+        (remaining / 600000000).round(); // Convert from ticks to minutes
+    if (minutes < 60) {
+      return '${minutes}m';
+    } else {
+      final hours = minutes ~/ 60;
+      final mins = minutes % 60;
+      return '${hours}h ${mins}m';
+    }
+  }
+}
+
+class _NextUpCard extends StatelessWidget {
+  final MediaItem item;
+
+  const _NextUpCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<JellyfinProvider>();
+    final imageUrl =
+        provider.getImageUrl(item.id, maxWidth: 500, maxHeight: 280);
+
+    return InkWell(
+      onTap: () {
+        context.go('/player', extra: {
+          'itemId': item.id,
+          'title': item.name,
+        });
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image with play button
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+                image: imageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(imageUrl),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: Stack(
+                children: [
+                  if (imageUrl == null)
+                    const Center(
+                      child: Icon(Icons.tv, size: 32, color: Colors.grey),
+                    ),
+                  // Play button
+                  const Center(
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.white,
+                      child: Icon(
+                        Icons.play_arrow,
+                        color: Colors.black,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Title underneath
+          Text(
+            item.name,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          // Episode info
+          Text(
+            'S2E1:Hello',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LibraryCategoryCard extends StatelessWidget {
+  final String title;
+  final int count;
+  final MediaItem backgroundImage;
+
+  const _LibraryCategoryCard({
+    required this.title,
+    required this.count,
+    required this.backgroundImage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<JellyfinProvider>();
+    final imageUrl =
+        provider.getImageUrl(backgroundImage.id, maxWidth: 400, maxHeight: 240);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          // TODO: Navigate to category view
+        },
+        child: Stack(
+          children: [
+            // Background image
+            Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                image: imageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(imageUrl),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+            ),
+            // Dark overlay
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+              ),
+            ),
+            // Title
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PosterCard extends StatelessWidget {
+  final MediaItem item;
+
+  const _PosterCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.read<JellyfinProvider>();
+    final imageUrl =
+        provider.getImageUrl(item.id, maxWidth: 300, maxHeight: 450);
+
+    return InkWell(
+      onTap: () {
+        context.go('/player', extra: {
+          'itemId': item.id,
+          'title': item.name,
+        });
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Poster image
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(8),
+                image: imageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(imageUrl),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: imageUrl == null
+                  ? const Center(
+                      child: Icon(Icons.movie, size: 32, color: Colors.grey),
+                    )
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Title
+          Text(
+            item.name,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          // Year (if available)
+          Text(
+            '2024', // TODO: Extract year from item data
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

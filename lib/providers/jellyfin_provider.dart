@@ -141,6 +141,28 @@ class JellyfinProvider extends ChangeNotifier {
     return _client!.playback.getStreamUrl(itemId);
   }
 
+  /// Get image URL for a media item
+  String? getImageUrl(String itemId,
+      {String imageType = 'Primary',
+      int imageIndex = 0,
+      int? maxWidth,
+      int? maxHeight}) {
+    if (_client == null || !isLoggedIn) return null;
+
+    String url =
+        '${_client!.baseUrl}/Items/$itemId/Images/$imageType/$imageIndex';
+
+    final params = <String, String>{};
+    if (maxWidth != null) params['maxWidth'] = maxWidth.toString();
+    if (maxHeight != null) params['maxHeight'] = maxHeight.toString();
+
+    if (params.isNotEmpty) {
+      url += '?' + params.entries.map((e) => '${e.key}=${e.value}').join('&');
+    }
+
+    return url;
+  }
+
   /// Search for media items
   Future<List<MediaItem>> searchItems(String query) async {
     if (_client == null || !isLoggedIn) return [];
