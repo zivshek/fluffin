@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../generated/l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
 import '../models/index.dart';
+import '../constants/ui_constants.dart';
 
 class LibraryContentScreen extends StatefulWidget {
   const LibraryContentScreen({super.key});
@@ -211,17 +212,17 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: UIConstants.mediumSpacing),
         SizedBox(
-          height: 120,
+          height: UIConstants.libraryCategorySectionHeight,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: UIConstants.sectionPadding,
             children: [
               if (movies.isNotEmpty)
                 Container(
-                  width: 200,
-                  margin: const EdgeInsets.only(right: 16),
+                  width: UIConstants.libraryCategoryCardWidth,
+                  margin: const EdgeInsets.only(right: UIConstants.cardSpacing),
                   child: _LibraryCategoryCard(
                     title: 'Movies',
                     count: movies.length,
@@ -230,8 +231,8 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
                 ),
               if (series.isNotEmpty)
                 Container(
-                  width: 200,
-                  margin: const EdgeInsets.only(right: 16),
+                  width: UIConstants.libraryCategoryCardWidth,
+                  margin: const EdgeInsets.only(right: UIConstants.cardSpacing),
                   child: _LibraryCategoryCard(
                     title: 'TV Shows',
                     count: series.length,
@@ -241,7 +242,7 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: UIConstants.sectionSpacing),
       ],
     );
   }
@@ -256,11 +257,7 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
             children: [
               const Text(
                 'Movies',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
+                style: UIConstants.sectionTitleStyle,
               ),
               const Spacer(),
               TextButton(
@@ -275,28 +272,23 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: UIConstants.mediumSpacing),
         SizedBox(
-          height: 260,
+          height: UIConstants.posterSectionHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: UIConstants.sectionPadding,
             itemCount: movies.length,
             itemBuilder: (context, index) {
-              // Make width responsive for different screen sizes
-              final screenWidth = MediaQuery.of(context).size.width;
-              final cardWidth =
-                  screenWidth > 600 ? 150.0 : 130.0; // Larger cards on tablets
-
               return Container(
-                width: cardWidth,
-                margin: const EdgeInsets.only(right: 16),
+                width: UIConstants.getPosterCardWidth(context),
+                margin: const EdgeInsets.only(right: UIConstants.cardSpacing),
                 child: _PosterCard(item: movies[index]),
               );
             },
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: UIConstants.sectionSpacing),
       ],
     );
   }
@@ -311,11 +303,7 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
             children: [
               const Text(
                 'TV Shows',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
+                style: UIConstants.sectionTitleStyle,
               ),
               const Spacer(),
               TextButton(
@@ -330,28 +318,23 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: UIConstants.mediumSpacing),
         SizedBox(
-          height: 260,
+          height: UIConstants.posterSectionHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: UIConstants.sectionPadding,
             itemCount: series.length,
             itemBuilder: (context, index) {
-              // Make width responsive for different screen sizes
-              final screenWidth = MediaQuery.of(context).size.width;
-              final cardWidth =
-                  screenWidth > 600 ? 150.0 : 130.0; // Larger cards on tablets
-
               return Container(
-                width: cardWidth,
-                margin: const EdgeInsets.only(right: 16),
+                width: UIConstants.getPosterCardWidth(context),
+                margin: const EdgeInsets.only(right: UIConstants.cardSpacing),
                 child: _PosterCard(item: series[index]),
               );
             },
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: UIConstants.sectionSpacing),
       ],
     );
   }
@@ -613,7 +596,7 @@ class _LibraryCategoryCard extends StatelessWidget {
           children: [
             // Background image
             Container(
-              height: 120,
+              height: UIConstants.libraryCategoryCardHeight,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.grey[800],
@@ -627,7 +610,7 @@ class _LibraryCategoryCard extends StatelessWidget {
             ),
             // Dark overlay
             Container(
-              height: 120,
+              height: UIConstants.libraryCategoryCardHeight,
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.5),
               ),
