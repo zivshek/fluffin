@@ -12,6 +12,7 @@ import 'screens/library_content_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/media_details_screen.dart';
 import 'screens/player_screen.dart';
 import 'generated/l10n/app_localizations.dart';
 
@@ -108,6 +109,18 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+
+    // Media details screen
+    GoRoute(
+      path: '/media-details',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return MediaDetailsScreen(
+          itemId: extra?['itemId'] ?? '',
+          item: extra?['item'],
+        );
+      },
     ),
 
     // Full-screen player

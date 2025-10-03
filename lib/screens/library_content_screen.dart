@@ -176,7 +176,7 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 160,
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -277,15 +277,20 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 200,
+          height: 260,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: movies.length.clamp(0, 10),
+            itemCount: movies.length,
             itemBuilder: (context, index) {
+              // Make width responsive for different screen sizes
+              final screenWidth = MediaQuery.of(context).size.width;
+              final cardWidth =
+                  screenWidth > 600 ? 150.0 : 130.0; // Larger cards on tablets
+
               return Container(
-                width: 130,
-                margin: const EdgeInsets.only(right: 12),
+                width: cardWidth,
+                margin: const EdgeInsets.only(right: 16),
                 child: _PosterCard(item: movies[index]),
               );
             },
@@ -327,15 +332,20 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 200,
+          height: 260,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: series.length.clamp(0, 10),
+            itemCount: series.length,
             itemBuilder: (context, index) {
+              // Make width responsive for different screen sizes
+              final screenWidth = MediaQuery.of(context).size.width;
+              final cardWidth =
+                  screenWidth > 600 ? 150.0 : 130.0; // Larger cards on tablets
+
               return Container(
-                width: 130,
-                margin: const EdgeInsets.only(right: 12),
+                width: cardWidth,
+                margin: const EdgeInsets.only(right: 16),
                 child: _PosterCard(item: series[index]),
               );
             },
@@ -368,7 +378,7 @@ class _ContinueWatchingCard extends StatelessWidget {
         });
       },
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Image with play button
           Expanded(
@@ -446,6 +456,7 @@ class _ContinueWatchingCard extends StatelessWidget {
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           // Remaining time
@@ -455,6 +466,7 @@ class _ContinueWatchingCard extends StatelessWidget {
               fontSize: 12,
               color: Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -505,7 +517,7 @@ class _NextUpCard extends StatelessWidget {
         });
       },
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Image with play button
           Expanded(
@@ -554,6 +566,7 @@ class _NextUpCard extends StatelessWidget {
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           // Episode info
@@ -563,6 +576,7 @@ class _NextUpCard extends StatelessWidget {
               fontSize: 12,
               color: Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -655,13 +669,13 @@ class _PosterCard extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        context.go('/player', extra: {
+        context.go('/media-details', extra: {
           'itemId': item.id,
-          'title': item.name,
+          'item': item,
         });
       },
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Poster image
           Expanded(
@@ -694,6 +708,7 @@ class _PosterCard extends StatelessWidget {
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 2),
           // Year (if available)
@@ -703,6 +718,7 @@ class _PosterCard extends StatelessWidget {
               fontSize: 12,
               color: Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
