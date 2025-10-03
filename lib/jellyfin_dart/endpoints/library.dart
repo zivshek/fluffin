@@ -226,7 +226,8 @@ class LibraryEndpoint {
     final queryParams = <String, dynamic>{
       'UserId': _client.userId,
       'Recursive': true,
-      'Fields': 'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio',
+      'Fields':
+          'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,SeriesName,ParentIndexNumber,IndexNumber',
       'EnableImageTypes': 'Primary,Backdrop,Banner,Thumb',
       'ImageTypeLimit': 1,
       'MediaTypes': 'Video',
@@ -258,6 +259,45 @@ class LibraryEndpoint {
 
     return JellyfinResponse.error(
       message: response.message ?? 'Failed to load resume items',
+      statusCode: response.statusCode,
+      error: response.error,
+    );
+  }
+
+  /// Get next up episodes
+  Future<JellyfinResponse<List<MediaItem>>> getNextUpEpisodes({
+    int? limit,
+  }) async {
+    final queryParams = <String, dynamic>{
+      'UserId': _client.userId,
+      'Fields': 'BasicSyncInfo,SeriesName,ParentIndexNumber,IndexNumber',
+      'EnableImageTypes': 'Primary,Backdrop,Banner,Thumb',
+      'ImageTypeLimit': 1,
+    };
+
+    if (limit != null) {
+      queryParams['Limit'] = limit;
+    }
+
+    final response = await _client.request<Map<String, dynamic>>(
+      'GET',
+      '/Shows/NextUp',
+      queryParameters: queryParams,
+    );
+
+    if (response.isSuccess) {
+      final items = (response.data!['Items'] as List)
+          .map((item) => MediaItem.fromJson(item))
+          .toList();
+
+      return JellyfinResponse.success(
+        data: items,
+        statusCode: response.statusCode,
+      );
+    }
+
+    return JellyfinResponse.error(
+      message: response.message ?? 'Failed to load next up episodes',
       statusCode: response.statusCode,
       error: response.error,
     );

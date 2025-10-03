@@ -131,6 +131,7 @@ final GoRouter _router = GoRouter(
         return PlayerScreen(
           itemId: extra?['itemId'] ?? '',
           title: extra?['title'] ?? '',
+          resumePosition: extra?['resumePosition'],
         );
       },
     ),

@@ -22,11 +22,11 @@ class UIConstants {
   static const double libraryCategoryCardHeight = 160.0;
 
   // Section heights
-  static const double posterSectionHeight = 270.0;
+  static const double posterSectionHeight = 290.0;
   static const double libraryCategorySectionHeight = 160.0;
 
   // Spacing
-  static const double sectionSpacing = 24.0;
+  static const double sectionSpacing = 16.0;
   static const double cardSpacing = 16.0;
   static const double smallSpacing = 8.0;
   static const double mediumSpacing = 12.0;

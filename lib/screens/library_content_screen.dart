@@ -91,15 +91,21 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
     final movies = items.where((item) => item.type == 'Movie').toList();
     final series = items.where((item) => item.type == 'Series').toList();
     final episodes = items.where((item) => item.type == 'Episode').toList();
+
+    // Continue watching items (already sorted by resume API)
     final continueWatching = items
         .where((item) => item.userData?.playbackPositionTicks != null)
         .toList();
 
+    // Movies and series are already sorted by DateCreated (newest first) from API
+    // Episodes are already sorted by DatePlayed for Next Up functionality
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // Shrink to fit content
         children: [
-          const SizedBox(height: 16),
+          const SizedBox(height: UIConstants.smallSpacing),
 
           // Continue Watching Section
           if (continueWatching.isNotEmpty)
@@ -118,7 +124,7 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
           // TV Shows Section
           if (series.isNotEmpty) _buildTVShowsSection(series),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: UIConstants.smallSpacing),
         ],
       ),
     );
@@ -355,9 +361,11 @@ class _ContinueWatchingCard extends StatelessWidget {
 
     return InkWell(
       onTap: () {
+        final resumePosition = item.userData?.playbackPositionTicks ?? 0;
         context.go('/player', extra: {
           'itemId': item.id,
           'title': item.name,
+          'resumePosition': resumePosition,
         });
       },
       child: Column(
@@ -401,9 +409,9 @@ class _ContinueWatchingCard extends StatelessWidget {
                     left: 0,
                     right: 0,
                     child: Container(
-                      height: 4,
+                      height: 6, // Made thicker for better visibility
                       decoration: const BoxDecoration(
-                        color: Colors.white24,
+                        color: Colors.black38,
                         borderRadius: BorderRadius.only(
                           bottomLeft: Radius.circular(12),
                           bottomRight: Radius.circular(12),
@@ -424,6 +432,28 @@ class _ContinueWatchingCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Progress percentage indicator
+                  if (progress > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${(progress * 100).round()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -431,7 +461,7 @@ class _ContinueWatchingCard extends StatelessWidget {
           const SizedBox(height: 8),
           // Title underneath
           Text(
-            item.name,
+            _getDisplayTitle(item),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -442,14 +472,16 @@ class _ContinueWatchingCard extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
-          // Remaining time
+          // Subtitle (remaining time for movies, episode info for TV shows)
           Text(
-            'Remaining time: $remainingTime',
+            _getDisplaySubtitle(item, remainingTime),
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -478,6 +510,52 @@ class _ContinueWatchingCard extends StatelessWidget {
       final mins = minutes % 60;
       return '${hours}h ${mins}m';
     }
+  }
+
+  String _getDisplayTitle(MediaItem item) {
+    // For TV episodes, show the series name
+    if (item.type == 'Episode' &&
+        item.seriesName != null &&
+        item.seriesName!.isNotEmpty) {
+      return item.seriesName!;
+    }
+    // For movies and other content, show the item name
+    return item.name;
+  }
+
+  String _getDisplaySubtitle(MediaItem item, String remainingTime) {
+    // For TV episodes, show season/episode info and episode name
+    if (item.type == 'Episode') {
+      final seasonEpisode = _formatSeasonEpisode(item);
+      final episodeName = item.name;
+
+      if (seasonEpisode.isNotEmpty && episodeName.isNotEmpty) {
+        return '$seasonEpisode: $episodeName';
+      } else if (seasonEpisode.isNotEmpty) {
+        return seasonEpisode;
+      } else if (episodeName.isNotEmpty) {
+        return episodeName;
+      }
+      return 'Episode';
+    }
+
+    // For movies and other content, show remaining time
+    return 'Remaining time: $remainingTime';
+  }
+
+  String _formatSeasonEpisode(MediaItem item) {
+    final season = item.seasonNumber;
+    final episode = item.episodeNumber;
+
+    if (season != null && episode != null) {
+      return 'S${season}E$episode';
+    } else if (season != null) {
+      return 'Season $season';
+    } else if (episode != null) {
+      return 'Episode $episode';
+    }
+
+    return '';
   }
 }
 
@@ -539,11 +617,11 @@ class _NextUpCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          // Title underneath
+          // Series name (title)
           Text(
-            item.name,
+            _getDisplayTitle(item),
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
@@ -552,18 +630,66 @@ class _NextUpCard extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
-          // Episode info
+          // Episode info (S1 E16: episode name)
           Text(
-            'S2E1:Hello',
+            _getDisplaySubtitle(item),
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
+  }
+
+  String _getDisplayTitle(MediaItem item) {
+    // For TV episodes, show the series name
+    if (item.type == 'Episode' &&
+        item.seriesName != null &&
+        item.seriesName!.isNotEmpty) {
+      return item.seriesName!;
+    }
+    // For movies and other content, show the item name
+    return item.name;
+  }
+
+  String _getDisplaySubtitle(MediaItem item) {
+    // For TV episodes, show season/episode info and episode name
+    if (item.type == 'Episode') {
+      final seasonEpisode = _formatSeasonEpisode(item);
+      final episodeName = item.name;
+
+      if (seasonEpisode.isNotEmpty && episodeName.isNotEmpty) {
+        return '$seasonEpisode: $episodeName';
+      } else if (seasonEpisode.isNotEmpty) {
+        return seasonEpisode;
+      } else if (episodeName.isNotEmpty) {
+        return episodeName;
+      }
+      return 'Episode';
+    }
+
+    // For other content types, show the item name or type
+    return item.type ?? 'Media';
+  }
+
+  String _formatSeasonEpisode(MediaItem item) {
+    final season = item.seasonNumber;
+    final episode = item.episodeNumber;
+
+    if (season != null && episode != null) {
+      return 'S${season}E$episode';
+    } else if (season != null) {
+      return 'Season $season';
+    } else if (episode != null) {
+      return 'Episode $episode';
+    }
+
+    return '';
   }
 }
 
@@ -651,60 +777,77 @@ class _PosterCard extends StatelessWidget {
         provider.getImageUrl(item.id, maxWidth: 300, maxHeight: 450);
 
     return InkWell(
-      onTap: () {
-        context.go('/media-details', extra: {
-          'itemId': item.id,
-          'item': item,
-        });
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Poster image
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(8),
-                image: imageUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(imageUrl),
-                        fit: BoxFit.cover,
+        onTap: () {
+          context.go('/media-details', extra: {
+            'itemId': item.id,
+            'item': item,
+          });
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.red, width: 2), // Debug border
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Poster image with fixed height
+              Container(
+                width: double.infinity,
+                height: 200, // Increased height for better poster visibility
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: Colors.blue, width: 1), // Debug border for image
+                  image: imageUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(imageUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: imageUrl == null
+                    ? const Center(
+                        child: Icon(Icons.movie, size: 32, color: Colors.grey),
                       )
                     : null,
               ),
-              child: imageUrl == null
-                  ? const Center(
-                      child: Icon(Icons.movie, size: 32, color: Colors.grey),
-                    )
-                  : null,
-            ),
+              const SizedBox(height: 8),
+              // Title and year with debug border
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: Colors.green,
+                      width: 1), // Debug border for text area
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Column(
+                  children: [
+                    Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 2),
+                    // Year (if available)
+                    Text(
+                      '2024', // TODO: Extract year from item data
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          // Title
-          Text(
-            item.name,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 2),
-          // Year (if available)
-          Text(
-            '2024', // TODO: Extract year from item data
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+        ));
   }
 }

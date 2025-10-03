@@ -78,17 +78,43 @@ class JellyfinProvider extends ChangeNotifier {
 
     _setLoading(true);
     try {
-      final response = await _client!.library.getItems(
-        includeItemTypes: ['Movie', 'Episode', 'Series'],
-        limit: 100,
+      // Load different content types with appropriate sorting
+      final resumeResponse = await _client!.library.getResumeItems(limit: 20);
+      final moviesResponse = await _client!.library.getItems(
+        includeItemTypes: ['Movie'],
+        sortBy: 'DateCreated',
+        sortOrder: 'Descending',
+        fields: ['DateCreated'],
+        limit: 50,
+      );
+      final seriesResponse = await _client!.library.getItems(
+        includeItemTypes: ['Series'],
+        sortBy: 'DateCreated',
+        sortOrder: 'Descending',
+        fields: ['DateCreated'],
+        limit: 50,
+      );
+      final episodesResponse = await _client!.library.getItems(
+        includeItemTypes: ['Episode'],
+        sortBy: 'DatePlayed',
+        sortOrder: 'Descending',
+        fields: ['DateCreated'],
+        limit: 20,
       );
 
-      if (response.isSuccess) {
-        _libraryItems = response.data!.items;
-        _error = null;
-      } else {
-        _error = response.message ?? 'Failed to load library';
-      }
+      // Combine all results
+      final resumeItems =
+          resumeResponse.isSuccess ? resumeResponse.data! : <MediaItem>[];
+      final movies =
+          moviesResponse.isSuccess ? moviesResponse.data!.items : <MediaItem>[];
+      final series =
+          seriesResponse.isSuccess ? seriesResponse.data!.items : <MediaItem>[];
+      final episodes = episodesResponse.isSuccess
+          ? episodesResponse.data!.items
+          : <MediaItem>[];
+
+      _libraryItems = [...resumeItems, ...movies, ...series, ...episodes];
+      _error = null;
     } catch (e) {
       _error = 'Failed to load library: ${e.toString()}'; // TODO: Localize this
     }

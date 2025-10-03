@@ -9,11 +9,13 @@ import '../providers/jellyfin_provider.dart';
 class PlayerScreen extends StatefulWidget {
   final String itemId;
   final String title;
+  final int? resumePosition;
 
   const PlayerScreen({
     super.key,
     required this.itemId,
     required this.title,
+    this.resumePosition,
   });
 
   @override
@@ -48,11 +50,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       await _player.open(Media(streamUrl));
 
+      // Seek to resume position if provided
+      if (widget.resumePosition != null && widget.resumePosition! > 0) {
+        final resumeSeconds =
+            widget.resumePosition! / 10000000; // Convert ticks to seconds
+        await _player.seek(Duration(seconds: resumeSeconds.round()));
+      }
+
       // Report playback start using new API
       if (provider.client != null) {
         await provider.client!.playback.reportPlaybackStart(
           itemId: widget.itemId,
-          positionTicks: 0,
+          positionTicks: widget.resumePosition ?? 0,
         );
       }
 
