@@ -9,6 +9,8 @@ class MediaItem {
   final int? runTimeTicks;
   final String? primaryImageTag;
   final DateTime? dateCreated;
+  final DateTime? premiereDate;
+  final int? productionYear;
   final String? seriesName;
   final int? seasonNumber;
   final int? episodeNumber;
@@ -23,6 +25,8 @@ class MediaItem {
     this.runTimeTicks,
     this.primaryImageTag,
     this.dateCreated,
+    this.premiereDate,
+    this.productionYear,
     this.seriesName,
     this.seasonNumber,
     this.episodeNumber,
@@ -41,6 +45,10 @@ class MediaItem {
       dateCreated: json['DateCreated'] != null
           ? DateTime.tryParse(json['DateCreated'] as String)
           : null,
+      premiereDate: json['PremiereDate'] != null
+          ? DateTime.tryParse(json['PremiereDate'] as String)
+          : null,
+      productionYear: json['ProductionYear'] as int?,
       seriesName: json['SeriesName'] as String?,
       seasonNumber: json['ParentIndexNumber'] as int?,
       episodeNumber: json['IndexNumber'] as int?,
@@ -64,6 +72,8 @@ class MediaItem {
       'RunTimeTicks': runTimeTicks,
       'PrimaryImageTag': primaryImageTag,
       'DateCreated': dateCreated?.toIso8601String(),
+      'PremiereDate': premiereDate?.toIso8601String(),
+      'ProductionYear': productionYear,
       'SeriesName': seriesName,
       'ParentIndexNumber': seasonNumber,
       'IndexNumber': episodeNumber,

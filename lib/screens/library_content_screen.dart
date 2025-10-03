@@ -289,6 +289,7 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
               return Container(
                 width: UIConstants.getPosterCardWidth(context),
                 margin: const EdgeInsets.only(right: UIConstants.cardSpacing),
+                alignment: Alignment.topCenter, // Align card to top
                 child: _PosterCard(item: movies[index]),
               );
             },
@@ -335,6 +336,7 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
               return Container(
                 width: UIConstants.getPosterCardWidth(context),
                 margin: const EdgeInsets.only(right: UIConstants.cardSpacing),
+                alignment: Alignment.topCenter, // Align card to top
                 child: _PosterCard(item: series[index]),
               );
             },
@@ -777,77 +779,83 @@ class _PosterCard extends StatelessWidget {
         provider.getImageUrl(item.id, maxWidth: 300, maxHeight: 450);
 
     return InkWell(
-        onTap: () {
-          context.go('/media-details', extra: {
-            'itemId': item.id,
-            'item': item,
-          });
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.red, width: 2), // Debug border
+      onTap: () {
+        context.go('/media-details', extra: {
+          'itemId': item.id,
+          'item': item,
+        });
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min, // Size to fit content
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Poster image with fixed height
+          Container(
+            width: double.infinity,
+            height: UIConstants.posterImageHeight,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(8),
+              image: imageUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(imageUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: imageUrl == null
+                ? const Center(
+                    child: Icon(Icons.movie, size: 32, color: Colors.grey),
+                  )
+                : null,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Poster image with fixed height
-              Container(
-                width: double.infinity,
-                height: 200, // Increased height for better poster visibility
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: Colors.blue, width: 1), // Debug border for image
-                  image: imageUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(imageUrl),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
+          SizedBox(height: UIConstants.posterTextSpacing),
+          // Title and year - constrained to prevent overflow
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
-                child: imageUrl == null
-                    ? const Center(
-                        child: Icon(Icons.movie, size: 32, color: Colors.grey),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 8),
-              // Title and year with debug border
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: Colors.green,
-                      width: 1), // Debug border for text area
+                SizedBox(height: UIConstants.posterTitleYearSpacing),
+                // Year (if available)
+                Text(
+                  _getYear(item),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                padding: const EdgeInsets.all(4),
-                child: Column(
-                  children: [
-                    Text(
-                      item.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 2),
-                    // Year (if available)
-                    Text(
-                      '2024', // TODO: Extract year from item data
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ));
+        ],
+      ),
+    );
+  }
+
+  String _getYear(MediaItem item) {
+    // Use production year first (most accurate for release year)
+    if (item.productionYear != null) {
+      return item.productionYear.toString();
+    }
+    // Fall back to premiere date
+    if (item.premiereDate != null) {
+      return item.premiereDate!.year.toString();
+    }
+    // Last resort: date created
+    if (item.dateCreated != null) {
+      return item.dateCreated!.year.toString();
+    }
+    return '';
   }
 }
