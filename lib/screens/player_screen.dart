@@ -12,12 +12,14 @@ class PlayerScreen extends StatefulWidget {
   final String itemId;
   final String title;
   final int? resumePosition;
+  final int? durationTicks;
 
   const PlayerScreen({
     super.key,
     required this.itemId,
     required this.title,
     this.resumePosition,
+    this.durationTicks,
   });
 
   @override
@@ -31,6 +33,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _isLoading = true;
   bool _isVideoReady = false;
   Timer? _hideControlsTimer;
+  Duration? _jellyfinDuration;
 
   @override
   void initState() {
@@ -41,6 +44,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
     );
     _controller = VideoController(_player);
+
+    // Convert Jellyfin duration from ticks to Duration if available
+    if (widget.durationTicks != null) {
+      _jellyfinDuration = Duration(microseconds: widget.durationTicks! ~/ 10);
+    }
+
     _initializePlayer();
 
     // Hide system UI for immersive experience
@@ -108,6 +117,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       // Try opening with custom headers for authentication
       print('DEBUG: About to open media...');
+      print(
+          'DEBUG: Resume position: ${widget.resumePosition} ticks (${widget.resumePosition != null ? widget.resumePosition! / 10000000 : 0} seconds)');
       try {
         await _player.open(
           Media(finalStreamUrl, httpHeaders: {
@@ -129,18 +140,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // Start playing immediately
       await _player.play();
 
-      // Seek to resume position if provided
+      // Seek to resume position if provided (before reporting playback start)
       if (widget.resumePosition != null && widget.resumePosition! > 0) {
         final resumeSeconds =
             widget.resumePosition! / 10000000; // Convert ticks to seconds
         await _player.seek(Duration(seconds: resumeSeconds.round()));
+
+        // Wait for the seek to complete
+        await Future.delayed(const Duration(milliseconds: 300));
       }
 
       // Report playback start using new API
       if (provider.client != null) {
+        // Use the resume position we just seeked to
+        final reportPosition = widget.resumePosition ?? 0;
         await provider.client!.playback.reportPlaybackStart(
           itemId: widget.itemId,
-          positionTicks: widget.resumePosition ?? 0,
+          positionTicks: reportPosition,
+          mediaSourceId: widget.itemId,
+          canSeek: true,
+          playMethod: 'DirectStream',
         );
       }
 
@@ -186,14 +205,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
       });
 
-      // Listen for position changes to report progress
-      _player.stream.position.listen((position) {
+      // Listen for position changes to report progress (every 10 seconds)
+      Timer.periodic(const Duration(seconds: 10), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        final position = _player.state.position;
         if (position.inMilliseconds > 0 && provider.client != null) {
-          provider.client!.playback.reportPlaybackProgress(
-            itemId: widget.itemId,
-            positionTicks: position.inMicroseconds * 10, // Convert to ticks
-            isPaused: !_player.state.playing,
-          );
+          _reportPlaybackProgress(provider, position);
         }
       });
 
@@ -233,6 +254,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _isControlsVisible = true;
     });
     _startHideControlsTimer();
+  }
+
+  Future<void> _reportPlaybackProgress(
+      JellyfinProvider provider, Duration position) async {
+    if (provider.client == null) return;
+
+    try {
+      await provider.client!.playback.reportPlaybackProgress(
+        itemId: widget.itemId,
+        positionTicks: position.inMicroseconds * 10, // Convert to ticks
+        isPaused: !_player.state.playing,
+        mediaSourceId: widget.itemId,
+        canSeek: true,
+        playMethod: 'DirectStream',
+        isMuted: false,
+        repeatMode: 'RepeatNone',
+      );
+      print(
+          'DEBUG: Reported playback progress: ${position.inSeconds}s (${position.inMicroseconds * 10} ticks), paused: ${!_player.state.playing}');
+    } catch (e) {
+      print('DEBUG: Error reporting playback progress: $e');
+    }
   }
 
   @override
@@ -419,9 +462,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         : Icons.play_circle_filled,
                     color: Colors.white,
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     _startHideControlsTimer(); // Reset timer on interaction
                     _player.playOrPause();
+
+                    // Report progress on play/pause
+                    final provider = context.read<JellyfinProvider>();
+                    final position = _player.state.position;
+                    await _reportPlaybackProgress(provider, position);
                   },
                 );
               },
@@ -443,7 +491,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       stream: _player.stream.duration,
                       builder: (context, durationSnapshot) {
                         final position = positionSnapshot.data ?? Duration.zero;
-                        final duration = durationSnapshot.data ?? Duration.zero;
+                        final playerDuration =
+                            durationSnapshot.data ?? Duration.zero;
+
+                        // Use Jellyfin duration as fallback if player duration is not available
+                        final duration = playerDuration.inMilliseconds > 0
+                            ? playerDuration
+                            : (_jellyfinDuration ?? Duration.zero);
 
                         return Column(
                           children: [
@@ -452,13 +506,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                   ? position.inMilliseconds /
                                       duration.inMilliseconds
                                   : 0.0,
-                              onChanged: (value) {
+                              onChanged: (value) async {
                                 _startHideControlsTimer(); // Reset timer on interaction
                                 final newPosition = Duration(
                                   milliseconds:
                                       (value * duration.inMilliseconds).round(),
                                 );
-                                _player.seek(newPosition);
+                                await _player.seek(newPosition);
+
+                                // Report progress after seeking
+                                final provider =
+                                    context.read<JellyfinProvider>();
+                                await _reportPlaybackProgress(
+                                    provider, newPosition);
                               },
                               activeColor: const Color(0xFF00A4DC),
                               inactiveColor:
@@ -539,23 +599,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  void _seekRelative(int seconds) {
+  void _seekRelative(int seconds) async {
     final currentPosition = _player.state.position;
     final newPosition = currentPosition + Duration(seconds: seconds);
-    _player.seek(newPosition);
+    await _player.seek(newPosition);
+
+    // Report progress after seeking
+    final provider = context.read<JellyfinProvider>();
+    await _reportPlaybackProgress(provider, newPosition);
   }
 
-  void _stopAndGoBack() {
+  void _stopAndGoBack() async {
     // Stop playback and report to server
     _player.stop();
 
     final position = _player.state.position;
     final provider = context.read<JellyfinProvider>();
     if (provider.client != null) {
-      provider.client!.playback.reportPlaybackStopped(
-        itemId: widget.itemId,
-        positionTicks: position.inMicroseconds * 10,
-      );
+      try {
+        final response = await provider.client!.playback.reportPlaybackStopped(
+          itemId: widget.itemId,
+          positionTicks: position.inMicroseconds * 10,
+          mediaSourceId: widget.itemId,
+        );
+
+        if (response.isSuccess) {
+          // Wait a bit for server to process the playback report
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Refresh library data to update continue watching
+          provider.loadLibrary();
+        }
+      } catch (e) {
+        print('DEBUG: Error reporting playback stopped: $e');
+        // Still refresh library even if report failed
+        provider.loadLibrary();
+      }
     }
 
     // Navigate back to library
@@ -589,6 +668,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
+
+    // Report final progress before disposing
+    final provider = context.read<JellyfinProvider>();
+    final position = _player.state.position;
+    if (position.inMilliseconds > 0) {
+      _reportPlaybackProgress(provider, position);
+    }
+
     _player.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();

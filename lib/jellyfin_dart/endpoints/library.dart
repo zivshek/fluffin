@@ -224,25 +224,24 @@ class LibraryEndpoint {
     int? limit,
   }) async {
     final queryParams = <String, dynamic>{
-      'UserId': _client.userId,
-      'Recursive': true,
-      'Fields':
+      'userId': _client.userId,
+      'fields':
           'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,SeriesName,ParentIndexNumber,IndexNumber',
-      'EnableImageTypes': 'Primary,Backdrop,Banner,Thumb',
-      'ImageTypeLimit': 1,
-      'MediaTypes': 'Video',
+      'enableImageTypes': 'Primary,Backdrop,Banner,Thumb',
+      'imageTypeLimit': 1,
+      'mediaTypes': 'Video',
     };
 
     if (parentId != null) {
-      queryParams['ParentId'] = parentId;
+      queryParams['parentId'] = parentId;
     }
     if (limit != null) {
-      queryParams['Limit'] = limit;
+      queryParams['limit'] = limit;
     }
 
     final response = await _client.request<Map<String, dynamic>>(
       'GET',
-      '/Users/${_client.userId}/Items/Resume',
+      '/UserItems/Resume',
       queryParameters: queryParams,
     );
 

@@ -226,6 +226,7 @@ class _MediaDetailsScreenState extends State<MediaDetailsScreen> {
                       context.go('/player', extra: {
                         'itemId': _item!.id,
                         'title': _item!.name,
+                        'durationTicks': _item!.runTimeTicks,
                       });
                     },
                     icon: const Icon(Icons.play_arrow),

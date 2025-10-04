@@ -13,13 +13,46 @@ class LibraryContentScreen extends StatefulWidget {
   State<LibraryContentScreen> createState() => _LibraryContentScreenState();
 }
 
-class _LibraryContentScreenState extends State<LibraryContentScreen> {
+class _LibraryContentScreenState extends State<LibraryContentScreen>
+    with WidgetsBindingObserver {
+  DateTime? _lastRefresh;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _lastRefresh = DateTime.now();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<JellyfinProvider>().loadLibrary();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh library when app comes back to foreground
+      _refreshLibraryIfNeeded();
+    }
+  }
+
+  void _refreshLibraryIfNeeded() {
+    final now = DateTime.now();
+    // Only refresh if it's been more than 2 seconds since last refresh
+    if (_lastRefresh == null || now.difference(_lastRefresh!).inSeconds > 2) {
+      _lastRefresh = now;
+      context.read<JellyfinProvider>().loadLibrary();
+    }
+  }
+
+  void _refreshLibrary() {
+    _lastRefresh = DateTime.now();
+    context.read<JellyfinProvider>().loadLibrary();
   }
 
   @override
@@ -59,28 +92,49 @@ class _LibraryContentScreenState extends State<LibraryContentScreen> {
           }
 
           if (provider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(provider.error!),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => provider.loadLibrary(),
-                    child: Text(AppLocalizations.of(context)!.retry),
+            return RefreshIndicator(
+              onRefresh: () async => _refreshLibrary(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 100,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(provider.error!),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => provider.loadLibrary(),
+                          child: Text(AppLocalizations.of(context)!.retry),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
             );
           }
 
           if (provider.libraryItems.isEmpty) {
-            return Center(
-              child: Text(AppLocalizations.of(context)!.noMediaFound),
+            return RefreshIndicator(
+              onRefresh: () async => _refreshLibrary(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height - 100,
+                  child: Center(
+                    child: Text(AppLocalizations.of(context)!.noMediaFound),
+                  ),
+                ),
+              ),
             );
           }
 
-          return _buildLibraryContent(provider.libraryItems);
+          return RefreshIndicator(
+            onRefresh: () async => _refreshLibrary(),
+            child: _buildLibraryContent(provider.libraryItems),
+          );
         },
       ),
     );
@@ -368,6 +422,7 @@ class _ContinueWatchingCard extends StatelessWidget {
           'itemId': item.id,
           'title': item.name,
           'resumePosition': resumePosition,
+          'durationTicks': item.runTimeTicks,
         });
       },
       child: Column(
@@ -577,6 +632,7 @@ class _NextUpCard extends StatelessWidget {
         context.go('/player', extra: {
           'itemId': item.id,
           'title': item.name,
+          'durationTicks': item.runTimeTicks,
         });
       },
       child: Column(

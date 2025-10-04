@@ -132,6 +132,7 @@ final GoRouter _router = GoRouter(
           itemId: extra?['itemId'] ?? '',
           title: extra?['title'] ?? '',
           resumePosition: extra?['resumePosition'],
+          durationTicks: extra?['durationTicks'],
         );
       },
     ),

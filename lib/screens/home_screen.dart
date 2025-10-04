@@ -92,6 +92,7 @@ class _MediaCard extends StatelessWidget {
           context.go('/player', extra: {
             'itemId': item.id,
             'title': item.name,
+            'durationTicks': item.runTimeTicks,
           });
         },
         child: Column(
