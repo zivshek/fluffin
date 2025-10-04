@@ -844,18 +844,60 @@ class _PosterCard extends StatelessWidget {
   }
 
   String _getYear(MediaItem item) {
-    // Use production year first (most accurate for release year)
-    if (item.productionYear != null) {
-      return item.productionYear.toString();
+    if (item.type == 'Series') {
+      // For TV shows, show date range (start-end year)
+      final startYear = _getStartYear(item);
+      final endYear = _getEndYear(item);
+
+      if (startYear.isNotEmpty && endYear.isNotEmpty && startYear != endYear) {
+        return '$startYear-$endYear';
+      } else if (startYear.isNotEmpty && endYear.isEmpty) {
+        // If no end date, assume ongoing series and show start year with dash
+        final currentYear = DateTime.now().year.toString();
+        if (startYear != currentYear) {
+          return '$startYear-';
+        } else {
+          return startYear;
+        }
+      } else if (startYear.isNotEmpty) {
+        return startYear;
+      }
+      return '';
+    } else {
+      // For movies and other content, show production year
+      if (item.productionYear != null) {
+        return item.productionYear.toString();
+      }
+      // Fall back to premiere date
+      if (item.premiereDate != null) {
+        return item.premiereDate!.year.toString();
+      }
+      // Last resort: date created
+      if (item.dateCreated != null) {
+        return item.dateCreated!.year.toString();
+      }
+      return '';
     }
-    // Fall back to premiere date
+  }
+
+  String _getStartYear(MediaItem item) {
     if (item.premiereDate != null) {
       return item.premiereDate!.year.toString();
     }
-    // Last resort: date created
+    if (item.productionYear != null) {
+      return item.productionYear.toString();
+    }
     if (item.dateCreated != null) {
       return item.dateCreated!.year.toString();
     }
+    return '';
+  }
+
+  String _getEndYear(MediaItem item) {
+    if (item.endDate != null) {
+      return item.endDate!.year.toString();
+    }
+    // If no end date, the series might still be ongoing
     return '';
   }
 }

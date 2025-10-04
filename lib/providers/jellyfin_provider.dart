@@ -84,14 +84,14 @@ class JellyfinProvider extends ChangeNotifier {
         includeItemTypes: ['Movie'],
         sortBy: 'DateCreated',
         sortOrder: 'Descending',
-        fields: ['DateCreated'],
+        fields: ['DateCreated', 'PremiereDate', 'ProductionYear'],
         limit: 50,
       );
       final seriesResponse = await _client!.library.getItems(
         includeItemTypes: ['Series'],
         sortBy: 'DateCreated',
         sortOrder: 'Descending',
-        fields: ['DateCreated'],
+        fields: ['DateCreated', 'PremiereDate', 'EndDate', 'ProductionYear'],
         limit: 50,
       );
       final episodesResponse = await _client!.library.getItems(
