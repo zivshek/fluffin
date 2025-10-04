@@ -792,7 +792,7 @@ class _PosterCard extends StatelessWidget {
           // Poster image with fixed height
           Container(
             width: double.infinity,
-            height: UIConstants.posterImageHeight,
+            height: UIConstants.posterCardImageHeight,
             decoration: BoxDecoration(
               color: Colors.grey[300],
               borderRadius: BorderRadius.circular(8),

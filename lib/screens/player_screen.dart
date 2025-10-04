@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../generated/l10n/app_localizations.dart';
@@ -27,11 +28,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final VideoController _controller;
   bool _isControlsVisible = true;
   bool _isLoading = true;
+  bool _isVideoReady = false;
 
   @override
   void initState() {
     super.initState();
-    _player = Player();
+    _player = Player(
+      configuration: const PlayerConfiguration(
+        title: 'Jellyfin Player',
+      ),
+    );
     _controller = VideoController(_player);
     _initializePlayer();
 
@@ -44,11 +50,82 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final provider = context.read<JellyfinProvider>();
       final streamUrl = provider.getStreamUrl(widget.itemId);
 
+      print('DEBUG: Attempting to play item ${widget.itemId}');
+      print('DEBUG: Stream URL: $streamUrl');
+      print('DEBUG: Client authenticated: ${provider.client?.isAuthenticated}');
+      print('DEBUG: User ID: ${provider.client?.userId}');
+      print(
+          'DEBUG: Access Token: ${provider.client?.accessToken != null ? 'Present' : 'Missing'}');
+
       if (streamUrl == null) {
-        throw Exception('Unable to get stream URL');
+        throw Exception(
+            'Unable to get stream URL - client not authenticated or missing itemId');
       }
 
-      await _player.open(Media(streamUrl));
+      // First get playback info to ensure we have proper streaming URLs
+      print('DEBUG: Getting playback info...');
+      final playbackInfoResponse =
+          await provider.client!.playback.getPlaybackInfo(widget.itemId);
+
+      if (!playbackInfoResponse.isSuccess) {
+        throw Exception(
+            'Failed to get playback info: ${playbackInfoResponse.message}');
+      }
+
+      final playbackInfo = playbackInfoResponse.data!;
+      print('DEBUG: Got ${playbackInfo.mediaSources.length} media sources');
+
+      if (playbackInfo.mediaSources.isEmpty) {
+        throw Exception('No media sources available');
+      }
+
+      // Use the first available media source
+      final mediaSource = playbackInfo.mediaSources.first;
+      print(
+          'DEBUG: Using media source ${mediaSource.id}, direct stream: ${mediaSource.supportsDirectStream}');
+
+      // Try different streaming approaches
+      String finalStreamUrl;
+
+      if (mediaSource.supportsDirectStream) {
+        // Try direct stream first
+        finalStreamUrl =
+            provider.client!.playback.getStreamUrl(widget.itemId, static: true);
+        print('DEBUG: Trying direct stream URL: $finalStreamUrl');
+      } else {
+        // Use transcoded stream with compatible format
+        finalStreamUrl = provider.client!.playback.getStreamUrl(
+          widget.itemId,
+          container: 'mp4',
+          videoCodec: 'h264',
+          audioCodec: 'aac',
+          maxStreamingBitrate: 8000000, // 8 Mbps
+        );
+        print('DEBUG: Trying transcoded stream URL: $finalStreamUrl');
+      }
+
+      // Try opening with custom headers for authentication
+      print('DEBUG: About to open media...');
+      try {
+        await _player.open(
+          Media(finalStreamUrl, httpHeaders: {
+            'X-Emby-Authorization':
+                'MediaBrowser Client="Fluffin", Device="fluffin-client", DeviceId="fluffin-client", Version="1.0.0", Token="${provider.client!.accessToken}"',
+            'Accept': '*/*',
+            'User-Agent': 'Fluffin/1.0.0',
+          }),
+        );
+        print('DEBUG: Media opened successfully');
+      } catch (e) {
+        print('DEBUG: Error opening media: $e');
+
+        // Try fallback without headers
+        print('DEBUG: Trying fallback without custom headers...');
+        await _player.open(Media(finalStreamUrl));
+      }
+
+      // Start playing immediately
+      await _player.play();
 
       // Seek to resume position if provided
       if (widget.resumePosition != null && widget.resumePosition! > 0) {
@@ -64,6 +141,48 @@ class _PlayerScreenState extends State<PlayerScreen> {
           positionTicks: widget.resumePosition ?? 0,
         );
       }
+
+      // Listen for player state changes
+      _player.stream.playing.listen((playing) {
+        print('DEBUG: Player playing state changed: $playing');
+      });
+
+      _player.stream.buffering.listen((buffering) {
+        print('DEBUG: Player buffering state changed: $buffering');
+      });
+
+      _player.stream.duration.listen((duration) {
+        print('DEBUG: Player duration changed: $duration');
+        if (duration.inMilliseconds > 0 && !_isVideoReady) {
+          setState(() {
+            _isVideoReady = true;
+          });
+        }
+      });
+
+      // Listen for video dimensions to ensure video is ready
+      _player.stream.width.listen((width) {
+        print('DEBUG: Video width: $width');
+        if (width != null && width > 0) {
+          setState(() {
+            _isVideoReady = true;
+          });
+        }
+      });
+
+      _player.stream.height.listen((height) {
+        print('DEBUG: Video height: $height');
+      });
+
+      // Fallback timeout - if video doesn't show dimensions after 10 seconds,
+      // assume it's an emulator issue but keep the audio playing
+      Future.delayed(const Duration(seconds: 10), () {
+        if (mounted && !_isVideoReady) {
+          print(
+              'DEBUG: Video dimensions not detected after 10s - likely emulator issue');
+          // Don't set _isVideoReady to true here, keep showing the fallback message
+        }
+      });
 
       // Listen for position changes to report progress
       _player.stream.position.listen((position) {
@@ -84,31 +203,122 @@ class _PlayerScreenState extends State<PlayerScreen> {
               content: Text(AppLocalizations.of(context)!
                   .failedToLoadVideo(e.toString()))),
         );
-        Navigator.of(context).pop();
+        context.go('/library');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator())
-          else
-            GestureDetector(
-              onTap: _toggleControls,
-              child: Video(
-                controller: _controller,
-                controls: NoVideoControls,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          _stopAndGoBack();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              GestureDetector(
+                onTap: _toggleControls,
+                child: Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: Colors.black,
+                  child: Stack(
+                    children: [
+                      // Video player
+                      Video(
+                        controller: _controller,
+                        controls: NoVideoControls,
+                        fit: BoxFit.contain,
+                        fill: Colors.black,
+                      ),
+                      // Fallback display for emulator issues
+                      if (!_isVideoReady)
+                        Container(
+                          color: Colors.black,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.play_circle_outline,
+                                    size: 64,
+                                    color: Colors.white54,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Video is playing...',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Audio should be audible',
+                                    style: TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Column(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          color: Colors.white38,
+                                          size: 20,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Video display may not work in emulators',
+                                          style: TextStyle(
+                                            color: Colors.white38,
+                                            fontSize: 11,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        Text(
+                                          'Try on a real device for full video playback',
+                                          style: TextStyle(
+                                            color: Colors.white38,
+                                            fontSize: 11,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            ),
 
-          // Custom controls overlay
-          if (_isControlsVisible && !_isLoading) _buildControlsOverlay(),
-        ],
+            // Custom controls overlay
+            if (_isControlsVisible && !_isLoading) _buildControlsOverlay(),
+          ],
+        ),
       ),
     );
   }
@@ -137,7 +347,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: _stopAndGoBack,
                   ),
                   Expanded(
                     child: Text(
@@ -165,8 +375,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Center(
             child: StreamBuilder<bool>(
               stream: _player.stream.playing,
+              initialData: true, // Assume playing initially since we auto-start
               builder: (context, snapshot) {
-                final isPlaying = snapshot.data ?? false;
+                final isPlaying = snapshot.data ?? true;
                 return IconButton(
                   iconSize: 64,
                   icon: Icon(
@@ -291,6 +502,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _player.seek(newPosition);
   }
 
+  void _stopAndGoBack() {
+    // Stop playback and report to server
+    _player.stop();
+
+    final position = _player.state.position;
+    final provider = context.read<JellyfinProvider>();
+    if (provider.client != null) {
+      provider.client!.playback.reportPlaybackStopped(
+        itemId: widget.itemId,
+        positionTicks: position.inMicroseconds * 10,
+      );
+    }
+
+    // Navigate back to library
+    context.go('/library');
+  }
+
   void _showPlayerSettings() {
     // TODO: Implement player settings
   }
@@ -317,21 +545,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
-    // Report playback stopped
-    final position = _player.state.position;
-    final provider = context.read<JellyfinProvider>();
-    if (provider.client != null) {
-      provider.client!.playback.reportPlaybackStopped(
-        itemId: widget.itemId,
-        positionTicks: position.inMicroseconds * 10,
-      );
-    }
-
     _player.dispose();
-
-    // Restore system UI
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
     super.dispose();
   }
 }

@@ -47,7 +47,8 @@ class PlaybackEndpoint {
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
         .join('&');
 
-    return '${_client.baseUrl}/Videos/$itemId/stream?$queryString&api_key=${_client.accessToken}';
+    final finalUrl = '${_client.baseUrl}/Videos/$itemId/stream?$queryString';
+    return finalUrl;
   }
 
   /// Get playback info for an item
