@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -29,6 +30,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _isControlsVisible = true;
   bool _isLoading = true;
   bool _isVideoReady = false;
+  Timer? _hideControlsTimer;
 
   @override
   void initState() {
@@ -196,6 +198,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       });
 
       setState(() => _isLoading = false);
+
+      // Start auto-hide timer when player is ready
+      _startHideControlsTimer();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,6 +211,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
         context.go('/library');
       }
     }
+  }
+
+  void _startHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && _isControlsVisible) {
+        setState(() {
+          _isControlsVisible = false;
+        });
+      }
+    });
+  }
+
+  void _cancelHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+  }
+
+  void _showControlsWithAutoHide() {
+    setState(() {
+      _isControlsVisible = true;
+    });
+    _startHideControlsTimer();
   }
 
   @override
@@ -347,7 +374,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: _stopAndGoBack,
+                    onPressed: () {
+                      _cancelHideControlsTimer();
+                      _stopAndGoBack();
+                    },
                   ),
                   Expanded(
                     child: Text(
@@ -362,7 +392,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.more_vert, color: Colors.white),
-                    onPressed: _showPlayerSettings,
+                    onPressed: () {
+                      _startHideControlsTimer(); // Reset timer on interaction
+                      _showPlayerSettings();
+                    },
                   ),
                 ],
               ),
@@ -386,7 +419,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         : Icons.play_circle_filled,
                     color: Colors.white,
                   ),
-                  onPressed: () => _player.playOrPause(),
+                  onPressed: () {
+                    _startHideControlsTimer(); // Reset timer on interaction
+                    _player.playOrPause();
+                  },
                 );
               },
             ),
@@ -417,6 +453,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                       duration.inMilliseconds
                                   : 0.0,
                               onChanged: (value) {
+                                _startHideControlsTimer(); // Reset timer on interaction
                                 final newPosition = Duration(
                                   milliseconds:
                                       (value * duration.inMilliseconds).round(),
@@ -455,19 +492,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.replay_10, color: Colors.white),
-                      onPressed: () => _seekRelative(-10),
+                      onPressed: () {
+                        _startHideControlsTimer(); // Reset timer on interaction
+                        _seekRelative(-10);
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.subtitles, color: Colors.white),
-                      onPressed: _showSubtitleOptions,
+                      onPressed: () {
+                        _startHideControlsTimer(); // Reset timer on interaction
+                        _showSubtitleOptions();
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.audiotrack, color: Colors.white),
-                      onPressed: _showAudioOptions,
+                      onPressed: () {
+                        _startHideControlsTimer(); // Reset timer on interaction
+                        _showAudioOptions();
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.forward_10, color: Colors.white),
-                      onPressed: () => _seekRelative(10),
+                      onPressed: () {
+                        _startHideControlsTimer(); // Reset timer on interaction
+                        _seekRelative(10);
+                      },
                     ),
                   ],
                 ),
@@ -480,19 +529,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _toggleControls() {
-    setState(() {
-      _isControlsVisible = !_isControlsVisible;
-    });
-
     if (_isControlsVisible) {
-      // Auto-hide controls after 3 seconds
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) {
-          setState(() {
-            _isControlsVisible = false;
-          });
-        }
+      _cancelHideControlsTimer();
+      setState(() {
+        _isControlsVisible = false;
       });
+    } else {
+      _showControlsWithAutoHide();
     }
   }
 
@@ -545,6 +588,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
+    _hideControlsTimer?.cancel();
     _player.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
