@@ -33,6 +33,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _isLoading = true;
   bool _isVideoReady = false;
   Timer? _hideControlsTimer;
+  Timer? _progressReportTimer;
   Duration? _jellyfinDuration;
 
   @override
@@ -206,7 +207,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       });
 
       // Listen for position changes to report progress (every 10 seconds)
-      Timer.periodic(const Duration(seconds: 10), (timer) {
+      _progressReportTimer =
+          Timer.periodic(const Duration(seconds: 10), (timer) {
         if (!mounted) {
           timer.cancel();
           return;
@@ -610,10 +612,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _stopAndGoBack() async {
+    // Cancel timers first
+    _hideControlsTimer?.cancel();
+    _progressReportTimer?.cancel();
+
     // Stop playback and report to server
     _player.stop();
 
     final position = _player.state.position;
+
+    // Navigate back immediately to prevent UI freezing
+    if (mounted) {
+      context.go('/library');
+    }
+
+    // Report playback stopped in background
     final provider = context.read<JellyfinProvider>();
     if (provider.client != null) {
       try {
@@ -636,9 +649,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         provider.loadLibrary();
       }
     }
-
-    // Navigate back to library
-    context.go('/library');
   }
 
   void _showPlayerSettings() {
@@ -668,14 +678,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
-
-    // Report final progress before disposing
-    final provider = context.read<JellyfinProvider>();
-    final position = _player.state.position;
-    if (position.inMilliseconds > 0) {
-      _reportPlaybackProgress(provider, position);
-    }
-
+    _progressReportTimer?.cancel();
     _player.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
