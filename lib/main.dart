@@ -83,6 +83,7 @@ final GoRouter _router = GoRouter(
         return LoginScreen(
           prefilledServerUrl: extra?['serverUrl'],
           prefilledUsername: extra?['username'],
+          prefilledPassword: extra?['password'],
         );
       },
     ),

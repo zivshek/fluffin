@@ -9,11 +9,13 @@ import '../models/login_history.dart';
 class LoginScreen extends StatefulWidget {
   final String? prefilledServerUrl;
   final String? prefilledUsername;
+  final String? prefilledPassword;
 
   const LoginScreen({
     super.key,
     this.prefilledServerUrl,
     this.prefilledUsername,
+    this.prefilledPassword,
   });
 
   @override
@@ -43,6 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (widget.prefilledUsername != null) {
       _usernameController.text = widget.prefilledUsername!;
     }
+    if (widget.prefilledPassword != null) {
+      _passwordController.text = widget.prefilledPassword!;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<JellyfinProvider>().tryAutoLogin();
@@ -69,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.signIn),
         backgroundColor: const Color(0xFF00A4DC),
@@ -79,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Consumer<JellyfinProvider>(
             builder: (context, provider, _) {
@@ -92,8 +98,10 @@ class _LoginScreenState extends State<LoginScreen> {
               return Form(
                 key: _formKey,
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
+                    // Add some top spacing to center content when keyboard is not visible
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.1),
                     const Icon(
                       Icons.play_circle_filled,
                       size: 80,
@@ -358,6 +366,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
+                    // Add bottom spacing to ensure content is accessible when keyboard appears
+                    SizedBox(
+                        height: MediaQuery.of(context).viewInsets.bottom + 50),
                   ],
                 ),
               );

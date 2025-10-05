@@ -194,9 +194,33 @@ class _LibrarySelectionScreenState extends State<LibrarySelectionScreen> {
                   ),
                 ),
               ],
-              onSelected: (value) {
+              onSelected: (value) async {
                 if (value == 'remove') {
                   _removeLibrary(library);
+                } else if (value == 'edit') {
+                  // Get stored password if available
+                  String? password;
+                  final hasCredentials =
+                      await LoginHistoryService.hasStoredCredentials(
+                    library.username,
+                    library.serverUrl,
+                  );
+
+                  if (hasCredentials) {
+                    password = await LoginHistoryService.getStoredPassword(
+                      library.username,
+                      library.serverUrl,
+                    );
+                  }
+
+                  // Navigate to login screen with pre-filled data
+                  if (mounted) {
+                    context.go('/login', extra: {
+                      'serverUrl': library.serverUrl,
+                      'username': library.username,
+                      'password': password, // Include password if available
+                    });
+                  }
                 }
               },
             ),

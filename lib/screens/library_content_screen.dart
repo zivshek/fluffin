@@ -415,21 +415,19 @@ class _ContinueWatchingCard extends StatelessWidget {
     final progress = _calculateProgress(item);
     final remainingTime = _calculateRemainingTime(item);
 
-    return InkWell(
-      onTap: () {
-        final resumePosition = item.userData?.playbackPositionTicks ?? 0;
-        context.go('/player', extra: {
-          'itemId': item.id,
-          'title': item.name,
-          'resumePosition': resumePosition,
-          'durationTicks': item.runTimeTicks,
-        });
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Image with play button
-          Expanded(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Image with play button
+        Expanded(
+          child: InkWell(
+            // Clicking anywhere except the play button goes to media details
+            onTap: () {
+              context.go('/media-details', extra: {
+                'itemId': item.id,
+                'item': item,
+              });
+            },
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -448,15 +446,29 @@ class _ContinueWatchingCard extends StatelessWidget {
                     const Center(
                       child: Icon(Icons.movie, size: 48, color: Colors.grey),
                     ),
-                  // Play button
-                  const Center(
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.play_arrow,
-                        color: Colors.black,
-                        size: 32,
+                  // Play button - separate clickable area
+                  Center(
+                    child: InkWell(
+                      onTap: () {
+                        // Play button click - start/resume playback
+                        final resumePosition =
+                            item.userData?.playbackPositionTicks ?? 0;
+                        context.go('/player', extra: {
+                          'itemId': item.id,
+                          'title': item.name,
+                          'resumePosition': resumePosition,
+                          'durationTicks': item.runTimeTicks,
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(24),
+                      child: const CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.play_arrow,
+                          color: Colors.black,
+                          size: 32,
+                        ),
                       ),
                     ),
                   ),
@@ -515,33 +527,46 @@ class _ContinueWatchingCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          // Title underneath
-          Text(
-            _getDisplayTitle(item),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        // Title and subtitle - also clickable for media details
+        InkWell(
+          onTap: () {
+            context.go('/media-details', extra: {
+              'itemId': item.id,
+              'item': item,
+            });
+          },
+          child: Column(
+            children: [
+              // Title underneath
+              Text(
+                _getDisplayTitle(item),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              // Subtitle (remaining time for movies, episode info for TV shows)
+              Text(
+                _getDisplaySubtitle(item, remainingTime),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          // Subtitle (remaining time for movies, episode info for TV shows)
-          Text(
-            _getDisplaySubtitle(item, remainingTime),
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -627,19 +652,19 @@ class _NextUpCard extends StatelessWidget {
     final imageUrl =
         provider.getImageUrl(item.id, maxWidth: 500, maxHeight: 280);
 
-    return InkWell(
-      onTap: () {
-        context.go('/player', extra: {
-          'itemId': item.id,
-          'title': item.name,
-          'durationTicks': item.runTimeTicks,
-        });
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Image with play button
-          Expanded(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Image with play button
+        Expanded(
+          child: InkWell(
+            // Clicking anywhere except the play button goes to media details
+            onTap: () {
+              context.go('/media-details', extra: {
+                'itemId': item.id,
+                'item': item,
+              });
+            },
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -658,15 +683,26 @@ class _NextUpCard extends StatelessWidget {
                     const Center(
                       child: Icon(Icons.tv, size: 32, color: Colors.grey),
                     ),
-                  // Play button
-                  const Center(
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.play_arrow,
-                        color: Colors.black,
-                        size: 24,
+                  // Play button - separate clickable area
+                  Center(
+                    child: InkWell(
+                      onTap: () {
+                        // Play button click - start playback
+                        context.go('/player', extra: {
+                          'itemId': item.id,
+                          'title': item.name,
+                          'durationTicks': item.runTimeTicks,
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: const CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.play_arrow,
+                          color: Colors.black,
+                          size: 24,
+                        ),
                       ),
                     ),
                   ),
@@ -674,33 +710,46 @@ class _NextUpCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          // Series name (title)
-          Text(
-            _getDisplayTitle(item),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        // Title and subtitle - also clickable for media details
+        InkWell(
+          onTap: () {
+            context.go('/media-details', extra: {
+              'itemId': item.id,
+              'item': item,
+            });
+          },
+          child: Column(
+            children: [
+              // Series name (title)
+              Text(
+                _getDisplayTitle(item),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              // Episode info (S1 E16: episode name)
+              Text(
+                _getDisplaySubtitle(item),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          // Episode info (S1 E16: episode name)
-          Text(
-            _getDisplaySubtitle(item),
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
