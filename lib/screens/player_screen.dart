@@ -7,6 +7,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../generated/l10n/app_localizations.dart';
 import '../providers/jellyfin_provider.dart';
+import '../jellyfin_dart/endpoints/playback.dart';
 
 class PlayerScreen extends StatefulWidget {
   final String itemId;
@@ -32,6 +33,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _isControlsVisible = true;
   bool _isLoading = true;
   bool _isVideoReady = false;
+  bool _isDirectStream = false;
   Timer? _hideControlsTimer;
   Timer? _progressReportTimer;
   Duration? _jellyfinDuration;
@@ -53,7 +55,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     _initializePlayer();
 
-    // Hide system UI for immersive experience
+    // Force landscape orientation and hide system UI
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
@@ -63,6 +69,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final streamUrl = provider.getStreamUrl(widget.itemId);
 
       print('DEBUG: Attempting to play item ${widget.itemId}');
+      print(
+          'DEBUG: Resume position received: ${widget.resumePosition} ticks (${widget.resumePosition != null ? widget.resumePosition! / 10000000 : 0} seconds)');
       print('DEBUG: Stream URL: $streamUrl');
       print('DEBUG: Client authenticated: ${provider.client?.isAuthenticated}');
       print('DEBUG: User ID: ${provider.client?.userId}');
@@ -77,7 +85,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // First get playback info to ensure we have proper streaming URLs
       print('DEBUG: Getting playback info...');
       final playbackInfoResponse =
-          await provider.client!.playback.getPlaybackInfo(widget.itemId);
+          await provider.client!.playback.getPlaybackInfo(
+        widget.itemId,
+        maxStreamingBitrate:
+            200000000, // 200 Mbps - very high to prefer direct streaming
+      );
 
       if (!playbackInfoResponse.isSuccess) {
         throw Exception(
@@ -91,29 +103,65 @@ class _PlayerScreenState extends State<PlayerScreen> {
         throw Exception('No media sources available');
       }
 
-      // Use the first available media source
-      final mediaSource = playbackInfo.mediaSources.first;
-      print(
-          'DEBUG: Using media source ${mediaSource.id}, direct stream: ${mediaSource.supportsDirectStream}');
+      // Debug all available media sources
+      for (int i = 0; i < playbackInfo.mediaSources.length; i++) {
+        final source = playbackInfo.mediaSources[i];
+        print('DEBUG: Media source $i: ${source.id}');
+        print('  - Container: ${source.container}');
+        print('  - Direct stream: ${source.supportsDirectStream}');
+        print('  - Transcoding: ${source.supportsTranscoding}');
+        print('  - Bitrate: ${source.bitrate}');
+        print('  - Protocol: ${source.protocol}');
+      }
 
-      // Try different streaming approaches
+      // Prefer direct stream sources over transcoding sources
+      MediaSource? selectedSource;
+
+      // First, try to find a source that supports direct streaming
+      for (final source in playbackInfo.mediaSources) {
+        if (source.supportsDirectStream) {
+          selectedSource = source;
+          print('DEBUG: Selected direct stream source: ${source.id}');
+          break;
+        }
+      }
+
+      // If no direct stream available, use the first source
+      selectedSource ??= playbackInfo.mediaSources.first;
+
+      final mediaSource = selectedSource;
+      print(
+          'DEBUG: Final media source ${mediaSource.id}, direct stream: ${mediaSource.supportsDirectStream}');
+
+      // Generate stream URL based on Streamyfin's approach
       String finalStreamUrl;
 
-      if (mediaSource.supportsDirectStream) {
-        // Try direct stream first
+      // Check if we have a transcoding URL from the server
+      if (mediaSource.transcodingUrl != null &&
+          mediaSource.transcodingUrl!.isNotEmpty) {
+        // Server wants to transcode - use the transcoding URL
+        _isDirectStream = false;
         finalStreamUrl =
-            provider.client!.playback.getStreamUrl(widget.itemId, static: true);
-        print('DEBUG: Trying direct stream URL: $finalStreamUrl');
+            '${provider.client!.baseUrl}${mediaSource.transcodingUrl}';
+        print(
+            'DEBUG: ⚠️  TRANSCODING REQUIRED - Server provided transcoding URL');
+        print('DEBUG: Transcoding URL: $finalStreamUrl');
       } else {
-        // Use transcoded stream with compatible format
+        // Direct play - generate direct stream URL
+        _isDirectStream = true;
+        final startPositionTicks = widget.resumePosition ?? 0;
+
         finalStreamUrl = provider.client!.playback.getStreamUrl(
           widget.itemId,
-          container: 'mp4',
-          videoCodec: 'h264',
-          audioCodec: 'aac',
-          maxStreamingBitrate: 8000000, // 8 Mbps
+          static: true,
+          startTimeTicks: startPositionTicks > 0 ? startPositionTicks : null,
         );
-        print('DEBUG: Trying transcoded stream URL: $finalStreamUrl');
+        print('DEBUG: ✅ DIRECT STREAMING - No transcoding needed');
+        print('DEBUG: Direct stream URL: $finalStreamUrl');
+        if (startPositionTicks > 0) {
+          print(
+              'DEBUG: Direct stream will start at position: ${startPositionTicks / 10000000}s');
+        }
       }
 
       // Try opening with custom headers for authentication
@@ -138,29 +186,70 @@ class _PlayerScreenState extends State<PlayerScreen> {
         await _player.open(Media(finalStreamUrl));
       }
 
-      // Start playing immediately
+      // Start playing first to ensure media is loaded
       await _player.play();
+      print('DEBUG: Playback started');
 
-      // Seek to resume position if provided (before reporting playback start)
-      if (widget.resumePosition != null && widget.resumePosition! > 0) {
+      // Wait for media to be ready and duration to be available
+      int waitAttempts = 0;
+      while (_player.state.duration.inMilliseconds == 0 && waitAttempts < 10) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        waitAttempts++;
+        print(
+            'DEBUG: Waiting for duration... attempt $waitAttempts, duration: ${_player.state.duration.inSeconds}s');
+      }
+
+      // Seek to resume position AFTER starting playback
+      // For direct streams: seek if no startTimeTicks was used in URL
+      // For transcoded streams: no seeking needed as server handles it
+      if (widget.resumePosition != null &&
+          widget.resumePosition! > 0 &&
+          _isDirectStream) {
         final resumeSeconds =
             widget.resumePosition! / 10000000; // Convert ticks to seconds
-        await _player.seek(Duration(seconds: resumeSeconds.round()));
+        print(
+            'DEBUG: Seeking to resume position: ${resumeSeconds}s (${widget.resumePosition} ticks)');
 
-        // Wait for the seek to complete
-        await Future.delayed(const Duration(milliseconds: 300));
+        // Try seeking multiple times if needed
+        for (int attempt = 0; attempt < 3; attempt++) {
+          await _player.seek(Duration(seconds: resumeSeconds.round()));
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          final currentPos = _player.state.position.inSeconds;
+          print(
+              'DEBUG: Seek attempt ${attempt + 1}, current position: ${currentPos}s');
+
+          // If we're close to the target position, break
+          if ((currentPos - resumeSeconds).abs() < 5) {
+            print('DEBUG: Seek successful');
+            break;
+          }
+        }
+
+        print(
+            'DEBUG: Final position after seeking: ${_player.state.position.inSeconds}s');
+      } else if (widget.resumePosition != null &&
+          widget.resumePosition! > 0 &&
+          !_isDirectStream) {
+        print(
+            'DEBUG: Transcoded stream - no seeking needed, server started at resume position');
       }
 
       // Report playback start using new API
       if (provider.client != null) {
-        // Use the resume position we just seeked to
-        final reportPosition = widget.resumePosition ?? 0;
+        // Use the actual current position after seeking
+        final currentPosition = _player.state.position;
+        final reportPosition =
+            currentPosition.inMicroseconds * 10; // Convert to ticks
+        print(
+            'DEBUG: Reporting playback start at position: ${currentPosition.inSeconds}s (${reportPosition} ticks)');
+
         await provider.client!.playback.reportPlaybackStart(
           itemId: widget.itemId,
           positionTicks: reportPosition,
           mediaSourceId: widget.itemId,
           canSeek: true,
-          playMethod: 'DirectStream',
+          playMethod: _isDirectStream ? 'DirectStream' : 'Transcode',
         );
       }
 
@@ -175,17 +264,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       _player.stream.duration.listen((duration) {
         print('DEBUG: Player duration changed: $duration');
-        if (duration.inMilliseconds > 0 && !_isVideoReady) {
-          setState(() {
-            _isVideoReady = true;
-          });
-        }
       });
 
       // Listen for video dimensions to ensure video is ready
       _player.stream.width.listen((width) {
         print('DEBUG: Video width: $width');
-        if (width != null && width > 0) {
+        if (width != null && width > 0 && !_isVideoReady) {
           setState(() {
             _isVideoReady = true;
           });
@@ -196,28 +280,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
         print('DEBUG: Video height: $height');
       });
 
-      // Fallback timeout - if video doesn't show dimensions after 10 seconds,
-      // assume it's an emulator issue but keep the audio playing
-      Future.delayed(const Duration(seconds: 10), () {
+      // Simple timeout - assume video is ready after 3 seconds regardless
+      Future.delayed(const Duration(seconds: 3), () {
         if (mounted && !_isVideoReady) {
-          print(
-              'DEBUG: Video dimensions not detected after 10s - likely emulator issue');
-          // Don't set _isVideoReady to true here, keep showing the fallback message
+          print('DEBUG: Setting video ready after timeout');
+          setState(() {
+            _isVideoReady = true;
+          });
         }
       });
 
-      // Listen for position changes to report progress (every 10 seconds)
-      _progressReportTimer =
-          Timer.periodic(const Duration(seconds: 10), (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
+      // Start progress reporting after a delay to allow seeking to complete
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!mounted) return;
 
-        final position = _player.state.position;
-        if (position.inMilliseconds > 0 && provider.client != null) {
-          _reportPlaybackProgress(provider, position);
-        }
+        // Listen for position changes to report progress (every 10 seconds)
+        _progressReportTimer =
+            Timer.periodic(const Duration(seconds: 10), (timer) {
+          if (!mounted) {
+            timer.cancel();
+            return;
+          }
+
+          final position = _player.state.position;
+          if (position.inMilliseconds > 0 && provider.client != null) {
+            _reportPlaybackProgress(provider, position);
+          }
+        });
       });
 
       setState(() => _isLoading = false);
@@ -269,7 +358,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         isPaused: !_player.state.playing,
         mediaSourceId: widget.itemId,
         canSeek: true,
-        playMethod: 'DirectStream',
+        playMethod: _isDirectStream ? 'DirectStream' : 'Transcode',
         isMuted: false,
         repeatMode: 'RepeatNone',
       );
@@ -496,10 +585,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         final playerDuration =
                             durationSnapshot.data ?? Duration.zero;
 
-                        // Use Jellyfin duration as fallback if player duration is not available
-                        final duration = playerDuration.inMilliseconds > 0
-                            ? playerDuration
-                            : (_jellyfinDuration ?? Duration.zero);
+                        // Use Jellyfin duration as primary source, player duration as fallback
+                        final duration = _jellyfinDuration != null &&
+                                _jellyfinDuration!.inMilliseconds > 0
+                            ? _jellyfinDuration!
+                            : (playerDuration.inMilliseconds > 0
+                                ? playerDuration
+                                : Duration.zero);
 
                         return Column(
                           children: [
@@ -616,10 +708,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _hideControlsTimer?.cancel();
     _progressReportTimer?.cancel();
 
-    // Stop playback and report to server
-    _player.stop();
-
+    // Get position BEFORE stopping playback
     final position = _player.state.position;
+    print(
+        'DEBUG: Stopping playback at position: ${position.inSeconds}s (${position.inMicroseconds * 10} ticks)');
+
+    // Stop playback
+    _player.stop();
 
     // Navigate back immediately to prevent UI freezing
     if (mounted) {
@@ -680,6 +775,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _hideControlsTimer?.cancel();
     _progressReportTimer?.cancel();
     _player.dispose();
+
+    // Restore orientation and system UI
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }

@@ -453,6 +453,13 @@ class _ContinueWatchingCard extends StatelessWidget {
                         // Play button click - start/resume playback
                         final resumePosition =
                             item.userData?.playbackPositionTicks ?? 0;
+                        print(
+                            'DEBUG: Continue watching clicked - Resume position: $resumePosition ticks (${resumePosition / 10000000} seconds)');
+                        print(
+                            'DEBUG: Item duration: ${item.runTimeTicks} ticks');
+                        print(
+                            'DEBUG: Progress: ${_calculateProgress(item) * 100}%');
+
                         context.go('/player', extra: {
                           'itemId': item.id,
                           'title': item.name,

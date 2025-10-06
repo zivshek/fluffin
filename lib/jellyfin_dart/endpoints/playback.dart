@@ -15,6 +15,7 @@ class PlaybackEndpoint {
     String? videoCodec,
     String? audioCodec,
     String? container,
+    int? startTimeTicks,
     bool static = false,
   }) {
     final queryParams = <String, String>{
@@ -42,6 +43,9 @@ class PlaybackEndpoint {
     if (container != null) {
       queryParams['Container'] = container;
     }
+    if (startTimeTicks != null) {
+      queryParams['StartTimeTicks'] = startTimeTicks.toString();
+    }
 
     final queryString = queryParams.entries
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
@@ -57,23 +61,25 @@ class PlaybackEndpoint {
     String? userId,
     int? maxStreamingBitrate,
     int? startTimeTicks,
-    String? audioStreamIndex,
-    String? subtitleStreamIndex,
+    int? audioStreamIndex,
+    int? subtitleStreamIndex,
+    String? mediaSourceId,
   }) async {
     final response = await _client.request<Map<String, dynamic>>(
       'POST',
       '/Items/$itemId/PlaybackInfo',
-      queryParameters: {
-        'UserId': userId ?? _client.userId!,
-      },
       data: {
+        'UserId': userId ?? _client.userId!,
         'DeviceProfile': _getDeviceProfile(),
+        'IsPlayback': true,
+        'AutoOpenLiveStream': true,
         if (maxStreamingBitrate != null)
           'MaxStreamingBitrate': maxStreamingBitrate,
         if (startTimeTicks != null) 'StartTimeTicks': startTimeTicks,
         if (audioStreamIndex != null) 'AudioStreamIndex': audioStreamIndex,
         if (subtitleStreamIndex != null)
           'SubtitleStreamIndex': subtitleStreamIndex,
+        if (mediaSourceId != null) 'MediaSourceId': mediaSourceId,
       },
     );
 
@@ -183,54 +189,78 @@ class PlaybackEndpoint {
     return '${_client.baseUrl}/Videos/$itemId/Subtitles/$streamIndex/Stream.$format?api_key=${_client.accessToken}';
   }
 
-  /// Basic device profile for media playback
+  /// Device profile optimized for Media Kit - based on Streamyfin's approach
   Map<String, dynamic> _getDeviceProfile() {
     return {
-      'MaxStreamingBitrate': 120000000,
-      'MaxStaticBitrate': 100000000,
-      'MusicStreamingTranscodingBitrate': 384000,
+      'Name': 'Fluffin Media Kit Player',
+      'MaxStaticBitrate': 999999999,
+      'MaxStreamingBitrate': 999999999,
+      'CodecProfiles': [
+        {
+          'Type': 'Video',
+          'Codec': 'h264,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1',
+        },
+        {
+          'Type': 'Video',
+          'Codec': 'hevc,h265',
+          'Conditions': [
+            {
+              'Condition': 'LessThanEqual',
+              'Property': 'VideoLevel',
+              'Value': '153',
+              'IsRequired': false,
+            },
+            {
+              'Condition': 'NotEquals',
+              'Property': 'VideoRangeType',
+              'Value': 'DOVI', // No Dolby Vision
+              'IsRequired': true,
+            },
+          ],
+        },
+        {
+          'Type': 'Audio',
+          'Codec': 'aac,ac3,eac3,mp3,flac,alac,opus,vorbis,pcm,wma,dts',
+        },
+      ],
       'DirectPlayProfiles': [
         {
-          'Container': 'webm',
           'Type': 'Video',
-          'VideoCodec': 'vp8,vp9,av1',
-          'AudioCodec': 'vorbis,opus'
+          'Container': 'mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls',
+          'VideoCodec':
+              'h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video',
+          'AudioCodec': 'aac,ac3,eac3,mp3,flac,alac,opus,vorbis,wma,dts,pcm',
         },
         {
-          'Container': 'mp4,m4v',
-          'Type': 'Video',
-          'VideoCodec': 'h264,h265,hevc,av1',
-          'AudioCodec': 'aac,mp3,ac3,eac3,flac,alac'
+          'Type': 'Audio',
+          'Container': 'mp3,aac,flac,alac,wav,ogg,wma',
+          'AudioCodec':
+              'mp3,aac,flac,alac,opus,vorbis,wma,pcm,mpa,wav,ogg,oga,webma,ape',
         },
-        {
-          'Container': 'mkv',
-          'Type': 'Video',
-          'VideoCodec': 'h264,h265,hevc,av1,vp8,vp9',
-          'AudioCodec': 'aac,mp3,ac3,eac3,flac,alac,vorbis,opus,dts'
-        }
       ],
       'TranscodingProfiles': [
         {
-          'Container': 'ts',
           'Type': 'Video',
-          'VideoCodec': 'h264',
-          'AudioCodec': 'aac',
-          'Protocol': 'hls'
+          'Context': 'Streaming',
+          'Protocol': 'hls',
+          'Container': 'ts',
+          'VideoCodec': 'h264,hevc',
+          'AudioCodec': 'aac,mp3,ac3,dts',
         },
         {
-          'Container': 'webm',
-          'Type': 'Video',
-          'VideoCodec': 'vpx',
-          'AudioCodec': 'vorbis',
-          'Protocol': 'http'
-        }
+          'Type': 'Audio',
+          'Context': 'Streaming',
+          'Protocol': 'http',
+          'Container': 'mp3',
+          'AudioCodec': 'mp3',
+          'MaxAudioChannels': '2',
+        },
       ],
-      'ContainerProfiles': [],
-      'CodecProfiles': [],
       'SubtitleProfiles': [
         {'Format': 'vtt', 'Method': 'External'},
         {'Format': 'ass', 'Method': 'External'},
-        {'Format': 'ssa', 'Method': 'External'}
+        {'Format': 'ssa', 'Method': 'External'},
+        {'Format': 'srt', 'Method': 'External'},
       ]
     };
   }
@@ -262,6 +292,7 @@ class MediaSource {
   final String? path;
   final String? protocol;
   final int? runTimeTicks;
+  final String? transcodingUrl;
   final bool supportsDirectStream;
   final bool supportsTranscoding;
 
@@ -272,6 +303,7 @@ class MediaSource {
     this.path,
     this.protocol,
     this.runTimeTicks,
+    this.transcodingUrl,
     required this.supportsDirectStream,
     required this.supportsTranscoding,
   });
@@ -284,6 +316,7 @@ class MediaSource {
       path: json['Path'] as String?,
       protocol: json['Protocol'] as String?,
       runTimeTicks: json['RunTimeTicks'] as int?,
+      transcodingUrl: json['TranscodingUrl'] as String?,
       supportsDirectStream: json['SupportsDirectStream'] as bool? ?? false,
       supportsTranscoding: json['SupportsTranscoding'] as bool? ?? false,
     );
