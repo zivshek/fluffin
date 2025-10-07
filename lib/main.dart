@@ -6,6 +6,7 @@ import 'package:media_kit/media_kit.dart';
 
 import 'providers/jellyfin_provider.dart';
 import 'providers/settings_provider.dart';
+import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/library_selection_screen.dart';
 import 'screens/library_content_screen.dart';
@@ -67,8 +68,14 @@ class FluffinApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/libraries',
+  initialLocation: '/',
   routes: [
+    // Splash screen (initial route)
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const SplashScreen(),
+    ),
+
     // Library selection (main hub)
     GoRoute(
       path: '/libraries',
