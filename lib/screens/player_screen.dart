@@ -186,18 +186,161 @@ class _PlayerScreenState extends State<PlayerScreen> {
         await _player.open(Media(finalStreamUrl));
       }
 
-      // Start playing first to ensure media is loaded
-      await _player.play();
-      print('DEBUG: Playback started');
-
-      // Wait for media to be ready and duration to be available
+      // Wait for media to be ready and duration to be available BEFORE starting playback
+      print('DEBUG: Waiting for media to be ready...');
       int waitAttempts = 0;
-      while (_player.state.duration.inMilliseconds == 0 && waitAttempts < 10) {
-        await Future.delayed(const Duration(milliseconds: 500));
+      while (_player.state.duration.inMilliseconds == 0 && waitAttempts < 20) {
+        await Future.delayed(const Duration(milliseconds: 250));
         waitAttempts++;
         print(
             'DEBUG: Waiting for duration... attempt $waitAttempts, duration: ${_player.state.duration.inSeconds}s');
       }
+
+      // Wait for video dimensions to be available (indicates video is ready)
+      waitAttempts = 0;
+      while ((_player.state.width == null || _player.state.width == 0) &&
+          waitAttempts < 20) {
+        await Future.delayed(const Duration(milliseconds: 250));
+        waitAttempts++;
+        print(
+            'DEBUG: Waiting for video dimensions... attempt $waitAttempts, width: ${_player.state.width}');
+      }
+
+      // Don't start playback yet - wait for video to be truly ready
+      print(
+          'DEBUG: Media loaded, waiting for video to be ready before starting playback...');
+
+      // Playback will start automatically when video is ready via _checkVideoReady
+
+      // Listen for player state changes
+      _player.stream.playing.listen((playing) {
+        print('DEBUG: Player playing state changed: $playing');
+      });
+
+      _player.stream.buffering.listen((buffering) {
+        print('DEBUG: Player buffering state changed: $buffering');
+      });
+
+      _player.stream.duration.listen((duration) {
+        print('DEBUG: Player duration changed: $duration');
+      });
+
+      // Listen for video dimensions to ensure video is ready
+      _player.stream.width.listen((width) {
+        print('DEBUG: Video width: $width');
+        _checkVideoReady();
+      });
+
+      _player.stream.height.listen((height) {
+        print('DEBUG: Video height: $height');
+        _checkVideoReady();
+      });
+
+      // Also listen for buffering state to help determine readiness
+      _player.stream.buffering.listen((buffering) {
+        if (!buffering) {
+          _checkVideoReady();
+        }
+      });
+
+      // Timeout fallback - assume video is ready after 5 seconds regardless
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && !_isVideoReady) {
+          print('DEBUG: Setting video ready after timeout');
+
+          // Start playback even if video dimensions aren't detected
+          _startPlaybackWhenReady();
+
+          setState(() {
+            _isVideoReady = true;
+            _isLoading = false; // Stop loading on timeout too
+          });
+        }
+      });
+
+      // Start progress reporting after a delay to allow seeking to complete
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!mounted) return;
+
+        // Listen for position changes to report progress (every 10 seconds)
+        _progressReportTimer =
+            Timer.periodic(const Duration(seconds: 10), (timer) {
+          if (!mounted) {
+            timer.cancel();
+            return;
+          }
+
+          final position = _player.state.position;
+          if (position.inMilliseconds > 0 && provider.client != null) {
+            _reportPlaybackProgress(provider, position);
+          }
+        });
+      });
+
+      // Don't set loading to false here - wait for video to be ready
+      // Loading will be set to false when _isVideoReady becomes true
+
+      // Start auto-hide timer when player is ready
+      _startHideControlsTimer();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .failedToLoadVideo(e.toString()))),
+        );
+        context.go('/library');
+      }
+    }
+  }
+
+  void _startHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && _isControlsVisible) {
+        setState(() {
+          _isControlsVisible = false;
+        });
+      }
+    });
+  }
+
+  void _cancelHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+  }
+
+  void _showControlsWithAutoHide() {
+    setState(() {
+      _isControlsVisible = true;
+    });
+    _startHideControlsTimer();
+  }
+
+  void _checkVideoReady() {
+    if (!_isVideoReady &&
+        _player.state.width != null &&
+        _player.state.width! > 0 &&
+        _player.state.height != null &&
+        _player.state.height! > 0 &&
+        !_player.state.buffering) {
+      print(
+          'DEBUG: Video is ready! Width: ${_player.state.width}, Height: ${_player.state.height}');
+
+      // Now start playback since video is ready
+      _startPlaybackWhenReady();
+
+      setState(() {
+        _isVideoReady = true;
+        _isLoading = false; // Only stop loading when video is actually ready
+      });
+    }
+  }
+
+  Future<void> _startPlaybackWhenReady() async {
+    try {
+      print('DEBUG: Starting playback now that video is ready...');
+      await _player.play();
+      print('DEBUG: Playback started');
 
       // Seek to resume position AFTER starting playback
       // For direct streams: seek if no startTimeTicks was used in URL
@@ -236,6 +379,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
 
       // Report playback start using new API
+      final provider = context.read<JellyfinProvider>();
       if (provider.client != null) {
         // Use the actual current position after seeking
         final currentPosition = _player.state.position;
@@ -252,99 +396,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           playMethod: _isDirectStream ? 'DirectStream' : 'Transcode',
         );
       }
-
-      // Listen for player state changes
-      _player.stream.playing.listen((playing) {
-        print('DEBUG: Player playing state changed: $playing');
-      });
-
-      _player.stream.buffering.listen((buffering) {
-        print('DEBUG: Player buffering state changed: $buffering');
-      });
-
-      _player.stream.duration.listen((duration) {
-        print('DEBUG: Player duration changed: $duration');
-      });
-
-      // Listen for video dimensions to ensure video is ready
-      _player.stream.width.listen((width) {
-        print('DEBUG: Video width: $width');
-        if (width != null && width > 0 && !_isVideoReady) {
-          setState(() {
-            _isVideoReady = true;
-          });
-        }
-      });
-
-      _player.stream.height.listen((height) {
-        print('DEBUG: Video height: $height');
-      });
-
-      // Simple timeout - assume video is ready after 3 seconds regardless
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted && !_isVideoReady) {
-          print('DEBUG: Setting video ready after timeout');
-          setState(() {
-            _isVideoReady = true;
-          });
-        }
-      });
-
-      // Start progress reporting after a delay to allow seeking to complete
-      Future.delayed(const Duration(seconds: 5), () {
-        if (!mounted) return;
-
-        // Listen for position changes to report progress (every 10 seconds)
-        _progressReportTimer =
-            Timer.periodic(const Duration(seconds: 10), (timer) {
-          if (!mounted) {
-            timer.cancel();
-            return;
-          }
-
-          final position = _player.state.position;
-          if (position.inMilliseconds > 0 && provider.client != null) {
-            _reportPlaybackProgress(provider, position);
-          }
-        });
-      });
-
-      setState(() => _isLoading = false);
-
-      // Start auto-hide timer when player is ready
-      _startHideControlsTimer();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(AppLocalizations.of(context)!
-                  .failedToLoadVideo(e.toString()))),
-        );
-        context.go('/library');
-      }
+      print('DEBUG: Error starting playback: $e');
     }
-  }
-
-  void _startHideControlsTimer() {
-    _hideControlsTimer?.cancel();
-    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && _isControlsVisible) {
-        setState(() {
-          _isControlsVisible = false;
-        });
-      }
-    });
-  }
-
-  void _cancelHideControlsTimer() {
-    _hideControlsTimer?.cancel();
-  }
-
-  void _showControlsWithAutoHide() {
-    setState(() {
-      _isControlsVisible = true;
-    });
-    _startHideControlsTimer();
   }
 
   Future<void> _reportPlaybackProgress(
@@ -373,7 +427,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
           _stopAndGoBack();
         }
@@ -718,7 +772,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     // Navigate back immediately to prevent UI freezing
     if (mounted) {
-      context.go('/library');
+      try {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/library');
+        }
+      } catch (e) {
+        print('DEBUG: Navigation error: $e, falling back to library');
+        context.go('/library');
+      }
     }
 
     // Report playback stopped in background

@@ -63,26 +63,42 @@ class _MediaDetailsScreenState extends State<MediaDetailsScreen> {
       );
     }
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeroSection(),
-                _buildMediaInfo(),
-                _buildDescription(),
-                _buildAudioSubtitleSelection(),
-                _buildCastSection(),
-                _buildRecommendationsSection(),
-                _buildTechnicalDetails(),
-                const SizedBox(height: 32),
-              ],
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          try {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/library');
+            }
+          } catch (e) {
+            context.go('/library');
+          }
+        }
+      },
+      child: Scaffold(
+        body: CustomScrollView(
+          slivers: [
+            _buildAppBar(),
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeroSection(),
+                  _buildMediaInfo(),
+                  _buildDescription(),
+                  _buildAudioSubtitleSelection(),
+                  _buildCastSection(),
+                  _buildRecommendationsSection(),
+                  _buildTechnicalDetails(),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -99,7 +115,18 @@ class _MediaDetailsScreenState extends State<MediaDetailsScreen> {
       foregroundColor: Colors.white,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.of(context).pop(),
+        onPressed: () {
+          try {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/library');
+            }
+          } catch (e) {
+            // Fallback navigation
+            context.go('/library');
+          }
+        },
       ),
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
