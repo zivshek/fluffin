@@ -295,6 +295,7 @@ class MediaSource {
   final String? transcodingUrl;
   final bool supportsDirectStream;
   final bool supportsTranscoding;
+  final List<MediaStream> mediaStreams;
 
   MediaSource({
     required this.id,
@@ -306,6 +307,7 @@ class MediaSource {
     this.transcodingUrl,
     required this.supportsDirectStream,
     required this.supportsTranscoding,
+    this.mediaStreams = const [],
   });
 
   factory MediaSource.fromJson(Map<String, dynamic> json) {
@@ -319,6 +321,72 @@ class MediaSource {
       transcodingUrl: json['TranscodingUrl'] as String?,
       supportsDirectStream: json['SupportsDirectStream'] as bool? ?? false,
       supportsTranscoding: json['SupportsTranscoding'] as bool? ?? false,
+      mediaStreams: (json['MediaStreams'] as List<dynamic>? ?? [])
+          .map((stream) => MediaStream.fromJson(stream as Map<String, dynamic>))
+          .toList(),
     );
+  }
+
+  List<MediaStream> get audioStreams =>
+      mediaStreams.where((stream) => stream.type == 'Audio').toList();
+
+  List<MediaStream> get subtitleStreams =>
+      mediaStreams.where((stream) => stream.type == 'Subtitle').toList();
+}
+
+class MediaStream {
+  final int index;
+  final String type;
+  final String? codec;
+  final String? language;
+  final String? displayTitle;
+  final bool isDefault;
+  final bool isForced;
+  final String? title;
+
+  MediaStream({
+    required this.index,
+    required this.type,
+    this.codec,
+    this.language,
+    this.displayTitle,
+    this.isDefault = false,
+    this.isForced = false,
+    this.title,
+  });
+
+  factory MediaStream.fromJson(Map<String, dynamic> json) {
+    return MediaStream(
+      index: json['Index'] as int,
+      type: json['Type'] as String,
+      codec: json['Codec'] as String?,
+      language: json['Language'] as String?,
+      displayTitle: json['DisplayTitle'] as String?,
+      isDefault: json['IsDefault'] as bool? ?? false,
+      isForced: json['IsForced'] as bool? ?? false,
+      title: json['Title'] as String?,
+    );
+  }
+
+  String get displayName {
+    if (displayTitle != null && displayTitle!.isNotEmpty) {
+      return displayTitle!;
+    }
+
+    String name = language ?? 'Unknown';
+    if (title != null && title!.isNotEmpty) {
+      name += ' - $title';
+    }
+    if (codec != null) {
+      name += ' - ${codec!.toUpperCase()}';
+    }
+    if (isDefault) {
+      name += ' - Default';
+    }
+    if (isForced) {
+      name += ' - Forced';
+    }
+
+    return name;
   }
 }

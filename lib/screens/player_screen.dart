@@ -37,6 +37,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Timer? _hideControlsTimer;
   Timer? _progressReportTimer;
   Duration? _jellyfinDuration;
+  MediaSource? _currentMediaSource;
 
   @override
   void initState() {
@@ -130,8 +131,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       selectedSource ??= playbackInfo.mediaSources.first;
 
       final mediaSource = selectedSource;
+      _currentMediaSource = mediaSource; // Store for later use
       print(
           'DEBUG: Final media source ${mediaSource.id}, direct stream: ${mediaSource.supportsDirectStream}');
+      print('DEBUG: Audio streams: ${mediaSource.audioStreams.length}');
+      print('DEBUG: Subtitle streams: ${mediaSource.subtitleStreams.length}');
 
       // Generate stream URL based on Streamyfin's approach
       String finalStreamUrl;
@@ -545,45 +549,41 @@ class _PlayerScreenState extends State<PlayerScreen> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black.withValues(alpha: 0.7),
+            Colors.black.withValues(alpha: 0.8),
             Colors.transparent,
             Colors.transparent,
-            Colors.black.withValues(alpha: 0.7),
+            Colors.black.withValues(alpha: 0.8),
           ],
         ),
       ),
       child: Column(
         children: [
-          // Top bar
+          // Top bar with back button and title
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    icon: const Icon(Icons.arrow_back,
+                        color: Colors.white, size: 28),
                     onPressed: () {
                       _cancelHideControlsTimer();
                       _stopAndGoBack();
                     },
                   ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       widget.title,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
-                    onPressed: () {
-                      _startHideControlsTimer(); // Reset timer on interaction
-                      _showPlayerSettings();
-                    },
                   ),
                 ],
               ),
@@ -596,26 +596,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Center(
             child: StreamBuilder<bool>(
               stream: _player.stream.playing,
-              initialData: true, // Assume playing initially since we auto-start
+              initialData: true,
               builder: (context, snapshot) {
                 final isPlaying = snapshot.data ?? true;
-                return IconButton(
-                  iconSize: 64,
-                  icon: Icon(
-                    isPlaying
-                        ? Icons.pause_circle_filled
-                        : Icons.play_circle_filled,
-                    color: Colors.white,
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
                   ),
-                  onPressed: () async {
-                    _startHideControlsTimer(); // Reset timer on interaction
-                    _player.playOrPause();
+                  child: IconButton(
+                    iconSize: 72,
+                    icon: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                    onPressed: () async {
+                      _startHideControlsTimer();
+                      _player.playOrPause();
 
-                    // Report progress on play/pause
-                    final provider = context.read<JellyfinProvider>();
-                    final position = _player.state.position;
-                    await _reportPlaybackProgress(provider, position);
-                  },
+                      final provider = context.read<JellyfinProvider>();
+                      final position = _player.state.position;
+                      await _reportPlaybackProgress(provider, position);
+                    },
+                  ),
                 );
               },
             ),
@@ -623,12 +627,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
           const Spacer(),
 
-          // Bottom controls
+          // Bottom section with progress bar and controls
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // Progress bar
+                // Progress bar with time labels
                 StreamBuilder<Duration>(
                   stream: _player.stream.position,
                   builder: (context, positionSnapshot) {
@@ -638,8 +642,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         final position = positionSnapshot.data ?? Duration.zero;
                         final playerDuration =
                             durationSnapshot.data ?? Duration.zero;
-
-                        // Use Jellyfin duration as primary source, player duration as fallback
                         final duration = _jellyfinDuration != null &&
                                 _jellyfinDuration!.inMilliseconds > 0
                             ? _jellyfinDuration!
@@ -649,41 +651,62 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
                         return Column(
                           children: [
-                            Slider(
-                              value: duration.inMilliseconds > 0
-                                  ? position.inMilliseconds /
-                                      duration.inMilliseconds
-                                  : 0.0,
-                              onChanged: (value) async {
-                                _startHideControlsTimer(); // Reset timer on interaction
-                                final newPosition = Duration(
-                                  milliseconds:
-                                      (value * duration.inMilliseconds).round(),
-                                );
-                                await _player.seek(newPosition);
-
-                                // Report progress after seeking
-                                final provider =
-                                    context.read<JellyfinProvider>();
-                                await _reportPlaybackProgress(
-                                    provider, newPosition);
-                              },
-                              activeColor: const Color(0xFF00A4DC),
-                              inactiveColor:
-                                  Colors.white.withValues(alpha: 0.3),
-                            ),
+                            // Time labels above progress bar
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
                                   _formatDuration(position),
-                                  style: const TextStyle(color: Colors.white),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                                 Text(
                                   _formatDuration(duration),
-                                  style: const TextStyle(color: Colors.white),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: 8),
+                            // Progress bar
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: const Color(0xFF00A4DC),
+                                inactiveTrackColor:
+                                    Colors.white.withValues(alpha: 0.3),
+                                thumbColor: const Color(0xFF00A4DC),
+                                thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 8),
+                                overlayShape: const RoundSliderOverlayShape(
+                                    overlayRadius: 16),
+                                trackHeight: 4,
+                              ),
+                              child: Slider(
+                                value: duration.inMilliseconds > 0
+                                    ? position.inMilliseconds /
+                                        duration.inMilliseconds
+                                    : 0.0,
+                                onChanged: (value) async {
+                                  _startHideControlsTimer();
+                                  final newPosition = Duration(
+                                    milliseconds:
+                                        (value * duration.inMilliseconds)
+                                            .round(),
+                                  );
+                                  await _player.seek(newPosition);
+
+                                  final provider =
+                                      context.read<JellyfinProvider>();
+                                  await _reportPlaybackProgress(
+                                      provider, newPosition);
+                                },
+                              ),
                             ),
                           ],
                         );
@@ -692,39 +715,92 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   },
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-                // Control buttons
+                // Bottom control buttons row
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.replay_10, color: Colors.white),
-                      onPressed: () {
-                        _startHideControlsTimer(); // Reset timer on interaction
-                        _seekRelative(-10);
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.subtitles, color: Colors.white),
-                      onPressed: () {
-                        _startHideControlsTimer(); // Reset timer on interaction
-                        _showSubtitleOptions();
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.audiotrack, color: Colors.white),
-                      onPressed: () {
-                        _startHideControlsTimer(); // Reset timer on interaction
-                        _showAudioOptions();
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.forward_10, color: Colors.white),
-                      onPressed: () {
-                        _startHideControlsTimer(); // Reset timer on interaction
-                        _seekRelative(10);
-                      },
+                    // Left side controls
+                    Row(
+                      children: [
+                        _buildControlButton(
+                          icon: Icons.lock_outline,
+                          onPressed: () => _toggleControlsLock(),
+                          tooltip: 'Lock Controls',
+                        ),
+                        const SizedBox(width: 16),
+                        _buildPopupControlButton(
+                          icon: Icons.audiotrack,
+                          tooltip: 'Audio Track',
+                          items: _buildAudioTrackItems(),
+                          onSelected: (value) {
+                            _selectAudioTrack(value);
+                          },
+                        ),
+                        const SizedBox(width: 16),
+                        _buildPopupControlButton(
+                          icon: Icons.subtitles,
+                          tooltip: 'Subtitles',
+                          items: _buildSubtitleTrackItems(),
+                          onSelected: (value) {
+                            _selectSubtitleTrack(value);
+                          },
+                        ),
+                        const SizedBox(width: 16),
+                        _buildPopupControlButton(
+                          icon: Icons.speed,
+                          tooltip: 'Playback Speed',
+                          items:
+                              ['0.5x', '0.75x', '1.0x', '1.25x', '1.5x', '2.0x']
+                                  .map((speed) => PopupMenuItem(
+                                        value: speed,
+                                        child: Text(speed),
+                                      ))
+                                  .toList(),
+                          onSelected: (value) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Speed changed to $value')),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 16),
+                        _buildPopupControlButton(
+                          icon: Icons.settings,
+                          tooltip: 'Quality Settings',
+                          items: [
+                            PopupMenuItem(
+                              value: 'auto',
+                              child: Row(
+                                children: [
+                                  Text('Auto (Direct Play)'),
+                                  Spacer(),
+                                  Icon(Icons.check,
+                                      color: Colors.green, size: 16),
+                                ],
+                              ),
+                            ),
+                            ...['4K', '1080p', '720p', '480p']
+                                .map((quality) => PopupMenuItem(
+                                      value: quality,
+                                      child: Text(quality),
+                                    )),
+                          ],
+                          onSelected: (value) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Quality changed to $value')),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 16),
+                        _buildControlButton(
+                          icon: Icons.info_outline,
+                          onPressed: () => _showMediaInfo(),
+                          tooltip: 'Media Info',
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -807,6 +883,241 @@ class _PlayerScreenState extends State<PlayerScreen> {
         provider.loadLibrary();
       }
     }
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          icon: Icon(icon, color: Colors.white, size: 20),
+          onPressed: () {
+            _startHideControlsTimer();
+            onPressed();
+          },
+          padding: EdgeInsets.zero,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPopupControlButton<T>({
+    required IconData icon,
+    required String tooltip,
+    required List<PopupMenuEntry<T>> items,
+    required void Function(T) onSelected,
+  }) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          color: Colors.black87,
+          textStyle: const TextStyle(color: Colors.white),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      child: PopupMenuButton<T>(
+        onSelected: (value) {
+          _startHideControlsTimer();
+          onSelected(value);
+        },
+        itemBuilder: (context) => items.map((item) {
+          if (item is PopupMenuItem<T>) {
+            return PopupMenuItem<T>(
+              value: item.value,
+              child: DefaultTextStyle(
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                child: item.child ?? const SizedBox(),
+              ),
+            );
+          }
+          return item;
+        }).toList(),
+        offset: const Offset(0, -10), // Position above the button
+        child: Tooltip(
+          message: tooltip,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleControlsLock() {
+    // TODO: Implement controls lock functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Controls lock - Coming soon')),
+    );
+  }
+
+  void _showMediaInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.black87,
+        title: const Text('Media Information',
+            style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInfoRow('Title', widget.title),
+            _buildInfoRow('Stream Type',
+                _isDirectStream ? 'Direct Stream' : 'Transcoded'),
+            _buildInfoRow(
+                'Duration',
+                _jellyfinDuration != null
+                    ? _formatDuration(_jellyfinDuration!)
+                    : 'Unknown'),
+            if (_player.state.width != null && _player.state.height != null)
+              _buildInfoRow('Resolution',
+                  '${_player.state.width}x${_player.state.height}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<PopupMenuEntry<int>> _buildAudioTrackItems() {
+    if (_currentMediaSource == null) {
+      return [
+        const PopupMenuItem(
+          value: -1,
+          child: Text('No audio tracks available'),
+        ),
+      ];
+    }
+
+    final audioStreams = _currentMediaSource!.audioStreams;
+    if (audioStreams.isEmpty) {
+      return [
+        const PopupMenuItem(
+          value: -1,
+          child: Text('No audio tracks available'),
+        ),
+      ];
+    }
+
+    return audioStreams.map((stream) {
+      return PopupMenuItem<int>(
+        value: stream.index,
+        child: Row(
+          children: [
+            Expanded(child: Text(stream.displayName)),
+            if (stream.isDefault)
+              const Icon(Icons.check, color: Colors.green, size: 16),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  List<PopupMenuEntry<int?>> _buildSubtitleTrackItems() {
+    final items = <PopupMenuEntry<int?>>[
+      const PopupMenuItem<int?>(
+        value: null,
+        child: Text('None'),
+      ),
+    ];
+
+    if (_currentMediaSource != null) {
+      final subtitleStreams = _currentMediaSource!.subtitleStreams;
+      items.addAll(subtitleStreams.map((stream) {
+        return PopupMenuItem<int?>(
+          value: stream.index,
+          child: Row(
+            children: [
+              Expanded(child: Text(stream.displayName)),
+              if (stream.isDefault)
+                const Icon(Icons.check, color: Colors.green, size: 16),
+            ],
+          ),
+        );
+      }));
+    }
+
+    return items;
+  }
+
+  void _selectAudioTrack(int trackIndex) {
+    // TODO: Implement audio track switching
+    final audioStreams = _currentMediaSource?.audioStreams ?? [];
+    final selectedStream = audioStreams.firstWhere(
+      (stream) => stream.index == trackIndex,
+      orElse: () => audioStreams.first,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Audio track: ${selectedStream.displayName}')),
+    );
+  }
+
+  void _selectSubtitleTrack(int? trackIndex) {
+    if (trackIndex == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Subtitles disabled')),
+      );
+      return;
+    }
+
+    // TODO: Implement subtitle track switching
+    final subtitleStreams = _currentMediaSource?.subtitleStreams ?? [];
+    final selectedStream = subtitleStreams.firstWhere(
+      (stream) => stream.index == trackIndex,
+      orElse: () => subtitleStreams.first,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Subtitle track: ${selectedStream.displayName}')),
+    );
   }
 
   void _showPlayerSettings() {
