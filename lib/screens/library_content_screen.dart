@@ -16,6 +16,7 @@ class LibraryContentScreen extends StatefulWidget {
 class _LibraryContentScreenState extends State<LibraryContentScreen>
     with WidgetsBindingObserver {
   DateTime? _lastRefresh;
+  DateTime? _lastPaused;
 
   @override
   void initState() {
@@ -35,16 +36,25 @@ class _LibraryContentScreenState extends State<LibraryContentScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // Refresh library when app comes back to foreground
-      _refreshLibraryIfNeeded();
+    final now = DateTime.now();
+
+    if (state == AppLifecycleState.paused) {
+      // Track when the app was paused
+      _lastPaused = now;
+    } else if (state == AppLifecycleState.resumed) {
+      // Only refresh if the app was actually backgrounded for a meaningful amount of time
+      // This prevents refreshing during orientation changes or brief interruptions
+      if (_lastPaused != null && now.difference(_lastPaused!).inSeconds > 5) {
+        _refreshLibraryIfNeeded();
+      }
     }
   }
 
   void _refreshLibraryIfNeeded() {
     final now = DateTime.now();
-    // Only refresh if it's been more than 2 seconds since last refresh
-    if (_lastRefresh == null || now.difference(_lastRefresh!).inSeconds > 2) {
+    // Only refresh if it's been more than 10 seconds since last refresh
+    // This prevents excessive refreshing during normal app usage
+    if (_lastRefresh == null || now.difference(_lastRefresh!).inSeconds > 10) {
       _lastRefresh = now;
       context.read<JellyfinProvider>().loadLibrary();
     }
