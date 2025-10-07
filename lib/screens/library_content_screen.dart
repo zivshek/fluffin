@@ -57,85 +57,93 @@ class _LibraryContentScreenState extends State<LibraryContentScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Consumer<JellyfinProvider>(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/libraries');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Consumer<JellyfinProvider>(
+            builder: (context, provider, _) {
+              return Text(provider.currentUser?.name ?? 'Library');
+            },
+          ),
+          backgroundColor: const Color(0xFF00A4DC),
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/libraries'),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.favorite),
+              onPressed: () => context.go('/favorites'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () => context.go('/search'),
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => context.go('/settings'),
+            ),
+          ],
+        ),
+        body: Consumer<JellyfinProvider>(
           builder: (context, provider, _) {
-            return Text(provider.currentUser?.name ?? 'Library');
-          },
-        ),
-        backgroundColor: const Color(0xFF00A4DC),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/libraries'),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite),
-            onPressed: () => context.go('/favorites'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => context.go('/search'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => context.go('/settings'),
-          ),
-        ],
-      ),
-      body: Consumer<JellyfinProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            if (provider.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (provider.error != null) {
-            return RefreshIndicator(
-              onRefresh: () async => _refreshLibrary(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height - 100,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(provider.error!),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => provider.loadLibrary(),
-                          child: Text(AppLocalizations.of(context)!.retry),
-                        ),
-                      ],
+            if (provider.error != null) {
+              return RefreshIndicator(
+                onRefresh: () async => _refreshLibrary(),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height - 100,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(provider.error!),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => provider.loadLibrary(),
+                            child: Text(AppLocalizations.of(context)!.retry),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }
+              );
+            }
 
-          if (provider.libraryItems.isEmpty) {
-            return RefreshIndicator(
-              onRefresh: () async => _refreshLibrary(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  height: MediaQuery.of(context).size.height - 100,
-                  child: Center(
-                    child: Text(AppLocalizations.of(context)!.noMediaFound),
+            if (provider.libraryItems.isEmpty) {
+              return RefreshIndicator(
+                onRefresh: () async => _refreshLibrary(),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height - 100,
+                    child: Center(
+                      child: Text(AppLocalizations.of(context)!.noMediaFound),
+                    ),
                   ),
                 ),
-              ),
-            );
-          }
+              );
+            }
 
-          return RefreshIndicator(
-            onRefresh: () async => _refreshLibrary(),
-            child: _buildLibraryContent(provider.libraryItems),
-          );
-        },
+            return RefreshIndicator(
+              onRefresh: () async => _refreshLibrary(),
+              child: _buildLibraryContent(provider.libraryItems),
+            );
+          },
+        ),
       ),
     );
   }

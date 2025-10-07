@@ -27,51 +27,124 @@ class _LibrarySelectionScreenState extends State<LibrarySelectionScreen> {
     setState(() {
       _userHistory = history;
     });
+
+    // Auto-connect to the most recent library if available
+    // Only if user is not already logged in (i.e., coming from splash screen)
+    if (history.isNotEmpty && !context.read<JellyfinProvider>().isLoggedIn) {
+      _autoConnectToMostRecent();
+    }
+  }
+
+  Future<void> _autoConnectToMostRecent() async {
+    if (_userHistory.isEmpty) return;
+
+    final mostRecentUser = _userHistory.first;
+
+    // Try to get stored password
+    final password = await LoginHistoryService.getStoredPassword(
+      mostRecentUser.username,
+      mostRecentUser.serverUrl,
+    );
+
+    if (password != null && mounted) {
+      // Show a brief loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        // Attempt auto-login with the most recent user
+        final provider = context.read<JellyfinProvider>();
+        final success = await provider.login(
+          mostRecentUser.serverUrl,
+          mostRecentUser.username,
+          password,
+        );
+
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+
+          if (success) {
+            // Update last login time
+            await LoginHistoryService.addUserToHistory(
+              username: mostRecentUser.username,
+              serverUrl: mostRecentUser.serverUrl,
+              displayName: mostRecentUser.displayName,
+              password: password,
+            );
+
+            // Navigate to library
+            context.go('/library');
+          }
+          // If login fails, just stay on library selection screen
+          // User can manually select a library or add a new one
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+          // If auto-login fails, just stay on library selection screen
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.library),
-        backgroundColor: const Color(0xFF00A4DC),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.cloud_upload),
-            onPressed: () {
-              // TODO: Sync/backup functionality
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddLibraryDialog(),
-          ),
-        ],
-      ),
-      body: _userHistory.isEmpty ? _buildEmptyState() : _buildLibraryList(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0, // Libraries tab selected
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              // Already on Libraries
-              break;
-            case 1:
-              context.go('/settings');
-              break;
-          }
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.video_library),
-            label: 'Libraries',
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.settings),
-            label: AppLocalizations.of(context)!.settings,
-          ),
-        ],
+    return PopScope(
+      canPop: false, // Don't allow automatic pop - handle it manually
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // On library selection screen, back button should exit app
+          // This is the expected behavior for the main screen
+          // The system will handle app exit
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.library),
+          backgroundColor: const Color(0xFF00A4DC),
+          foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.cloud_upload),
+              onPressed: () {
+                // TODO: Sync/backup functionality
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => _showAddLibraryDialog(),
+            ),
+          ],
+        ),
+        body: _userHistory.isEmpty ? _buildEmptyState() : _buildLibraryList(),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: 0, // Libraries tab selected
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                // Already on Libraries
+                break;
+              case 1:
+                context.go('/settings');
+                break;
+            }
+          },
+          items: [
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.video_library),
+              label: 'Libraries',
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.settings),
+              label: AppLocalizations.of(context)!.settings,
+            ),
+          ],
+        ),
       ),
     );
   }

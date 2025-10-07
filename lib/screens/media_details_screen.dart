@@ -64,7 +64,7 @@ class _MediaDetailsScreenState extends State<MediaDetailsScreen> {
     }
 
     return PopScope(
-      canPop: true,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
           try {
