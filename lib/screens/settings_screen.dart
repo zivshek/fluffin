@@ -10,105 +10,129 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.settings),
-        backgroundColor: const Color(0xFF00A4DC),
-        foregroundColor: Colors.white,
-      ),
-      body: Consumer<SettingsProvider>(
-        builder: (context, settings, _) {
-          return ListView(
-            children: [
-              _buildSection(
-                context,
-                AppLocalizations.of(context)!.appearance,
-                [
-                  SwitchListTile(
-                    title: Text(AppLocalizations.of(context)!.darkMode),
-                    subtitle:
-                        Text(AppLocalizations.of(context)!.darkModeDescription),
-                    value: settings.isDarkMode,
-                    onChanged: settings.setDarkMode,
-                  ),
-                  ListTile(
-                    title: Text(AppLocalizations.of(context)!.language),
-                    subtitle:
-                        Text(_getLanguageName(context, settings.appLanguage)),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () => _showLanguageDialog(context, settings),
-                  ),
-                ],
-              ),
-              _buildSection(
-                context,
-                AppLocalizations.of(context)!.playback,
-                [
-                  SwitchListTile(
-                    title: Text(AppLocalizations.of(context)!.autoSkipIntros),
-                    subtitle: Text(AppLocalizations.of(context)!
-                        .autoSkipIntrosDescription),
-                    value: settings.autoSkipIntros,
-                    onChanged: settings.setAutoSkipIntros,
-                  ),
-                  SwitchListTile(
-                    title:
-                        Text(AppLocalizations.of(context)!.rememberSubtitles),
-                    subtitle: Text(AppLocalizations.of(context)!
-                        .rememberSubtitlesDescription),
-                    value: settings.rememberSubtitles,
-                    onChanged: settings.setRememberSubtitles,
-                  ),
-                  ListTile(
-                    title: Text(AppLocalizations.of(context)!
-                        .preferredSubtitleLanguage),
-                    subtitle:
-                        Text(settings.preferredSubtitleLanguage.toUpperCase()),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () => _showSubtitleLanguageDialog(context, settings),
-                  ),
-                ],
-              ),
-              _buildSection(
-                context,
-                AppLocalizations.of(context)!.account,
-                [
-                  Consumer<JellyfinProvider>(
-                    builder: (context, jellyfinProvider, _) {
-                      return ListTile(
-                        title: Text(AppLocalizations.of(context)!.currentUser),
-                        subtitle: Text(
-                            jellyfinProvider.currentUser?.name ?? 'Unknown'),
-                        leading: const Icon(Icons.person),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    title: Text(AppLocalizations.of(context)!.logout),
-                    leading: const Icon(Icons.logout, color: Colors.red),
-                    onTap: () => _showLogoutDialog(context),
-                  ),
-                ],
-              ),
-              _buildSection(
-                context,
-                AppLocalizations.of(context)!.about,
-                [
-                  ListTile(
-                    title: Text(AppLocalizations.of(context)!.version),
-                    subtitle: const Text('1.0.0+1'),
-                    leading: const Icon(Icons.info),
-                  ),
-                  ListTile(
-                    title: Text(AppLocalizations.of(context)!.licenses),
-                    leading: const Icon(Icons.description),
-                    onTap: () => showLicensePage(context: context),
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/library');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.settings),
+          backgroundColor: const Color(0xFF00A4DC),
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              try {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/library');
+                }
+              } catch (e) {
+                context.go('/library');
+              }
+            },
+          ),
+        ),
+        body: Consumer<SettingsProvider>(
+          builder: (context, settings, _) {
+            return ListView(
+              children: [
+                _buildSection(
+                  context,
+                  AppLocalizations.of(context)!.appearance,
+                  [
+                    SwitchListTile(
+                      title: Text(AppLocalizations.of(context)!.darkMode),
+                      subtitle: Text(
+                          AppLocalizations.of(context)!.darkModeDescription),
+                      value: settings.isDarkMode,
+                      onChanged: settings.setDarkMode,
+                    ),
+                    ListTile(
+                      title: Text(AppLocalizations.of(context)!.language),
+                      subtitle:
+                          Text(_getLanguageName(context, settings.appLanguage)),
+                      trailing: const Icon(Icons.arrow_forward_ios),
+                      onTap: () => _showLanguageDialog(context, settings),
+                    ),
+                  ],
+                ),
+                _buildSection(
+                  context,
+                  AppLocalizations.of(context)!.playback,
+                  [
+                    SwitchListTile(
+                      title: Text(AppLocalizations.of(context)!.autoSkipIntros),
+                      subtitle: Text(AppLocalizations.of(context)!
+                          .autoSkipIntrosDescription),
+                      value: settings.autoSkipIntros,
+                      onChanged: settings.setAutoSkipIntros,
+                    ),
+                    SwitchListTile(
+                      title:
+                          Text(AppLocalizations.of(context)!.rememberSubtitles),
+                      subtitle: Text(AppLocalizations.of(context)!
+                          .rememberSubtitlesDescription),
+                      value: settings.rememberSubtitles,
+                      onChanged: settings.setRememberSubtitles,
+                    ),
+                    ListTile(
+                      title: Text(AppLocalizations.of(context)!
+                          .preferredSubtitleLanguage),
+                      subtitle: Text(
+                          settings.preferredSubtitleLanguage.toUpperCase()),
+                      trailing: const Icon(Icons.arrow_forward_ios),
+                      onTap: () =>
+                          _showSubtitleLanguageDialog(context, settings),
+                    ),
+                  ],
+                ),
+                _buildSection(
+                  context,
+                  AppLocalizations.of(context)!.account,
+                  [
+                    Consumer<JellyfinProvider>(
+                      builder: (context, jellyfinProvider, _) {
+                        return ListTile(
+                          title:
+                              Text(AppLocalizations.of(context)!.currentUser),
+                          subtitle: Text(
+                              jellyfinProvider.currentUser?.name ?? 'Unknown'),
+                          leading: const Icon(Icons.person),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      title: Text(AppLocalizations.of(context)!.logout),
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      onTap: () => _showLogoutDialog(context),
+                    ),
+                  ],
+                ),
+                _buildSection(
+                  context,
+                  AppLocalizations.of(context)!.about,
+                  [
+                    ListTile(
+                      title: Text(AppLocalizations.of(context)!.version),
+                      subtitle: const Text('1.0.0+1'),
+                      leading: const Icon(Icons.info),
+                    ),
+                    ListTile(
+                      title: Text(AppLocalizations.of(context)!.licenses),
+                      leading: const Icon(Icons.description),
+                      onTap: () => showLicensePage(context: context),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
